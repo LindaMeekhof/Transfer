@@ -8,31 +8,33 @@ import java.util.Arrays;
 public class ARQPacket {
 
     //Constants for Header
-    private static int HEADERSIZE = 20;
+    private static int HEADERSIZE = 24;
     
     //Flags; waar is het pakketje voor
-    private static int SYN = 1;         //setup, for making a storage for the file that will be send
+    private static final int SYN = 1;         //setup, for making a storage for the file that will be send
     private static byte[] SYN_B = new byte[] {0b00000000, 0b00000000, 0b00000000, 0b00000001};
-    private static int ACK = 2;         //ack of the send data.
-    private static int SYN_ACK = 3;     //doorgaan met zenden
-    private static int FIN = 4;         //finished with the file
-    private static int FILE_REQUEST = 8; //fileRequest 
+    private static final int ACK = 2;         //ack of the send data.
+    private static final int SYN_ACK = 3;     //doorgaan met zenden
+    private static final int FIN = 4;         //finished with the file
+    private static final int FILE_REQUEST = 8; //fileRequest 
    
+    
     //Starting place in the header
     private static int FLAG = 0;
     private static int NAME_FILE = 4;
     private static int SEQUENCE_NR = 8; 
-    private static int ACK_NUMBER = 11;
-    private static int CONTENT_LENGTH = 14;
-    private static int OPTION = 17;
+    private static int ACK_NUMBER = 12;
+    private static int CONTENT_LENGTH = 16;
+    private static int OPTION_POS = 20;
     
     
     //header info
     private int sequenceNumber;
     private int ackNumber;
     private int contentLength;
-    private int flag;               
-   
+    private int flag;  
+    private int option;
+    private int filename;
     
     private static int DATASIZE = 200;
  //   private static int SEQ_NR = 4;
@@ -49,46 +51,70 @@ public class ARQPacket {
      * ARQPAcket constructor
      */
     public ARQPacket () {
-        sequenceNumber = 0;
-        ackNumber = 0;
-        contentLength = 0;
-        flag = 0;
+        flag = 11;
+        filename = 22;
+        sequenceNumber = 3;
+        ackNumber = 4;
+        contentLength = 5;
+        option = 6;
+        
+        header = getHeader();
     }
+    
+    public ARQPacket (int flag, int filename, int sequenceNumber, int ackNumber, int contentLength, int option) {
+        this.flag = flag;
+        this.filename = filename;
+        this.sequenceNumber = sequenceNumber;
+        this.ackNumber = ackNumber;
+        this.contentLength = contentLength;
+        this.option = option;
+        
+        header = getHeader();
+    }
+    
+    public ARQPacket(DatagramPacket datagram) {
+       
+       byte[] dataReceivedPacket = datagram.getData();
+       
+       flag = getFlags(datagram);
+       filename = getFileName(datagram);
+ 
+    } 
     
     public byte[] getHeader() {
         //byte buffer for the header
         ByteBuffer buffer = ByteBuffer.allocate(HEADERSIZE);
         
-        //Flag
-        ByteBuffer flags =  ByteBuffer.allocate(flag);
-      //  buffer.put(flags.array(), FLAG, 4);
+        // 1. Flag
+        ByteBuffer flags =  ByteBuffer.allocate(4).putInt(flag);
         buffer.position(FLAG);
         buffer.put(flags.array());
-      //TODO  
-        //Name/Number file
-        ByteBuffer fileName =  ByteBuffer.allocate(flag);
-        buffer.put(fileName.array(), FLAG, 5);
+        
+        // 2. Name/Number file
+        ByteBuffer fileName =  ByteBuffer.allocate(4).putInt(filename);
         buffer.position(NAME_FILE);
         buffer.put(fileName.array());
         
-        //SequenceNumber 
+        // 3. SequenceNumber 
         ByteBuffer seqNumber = ByteBuffer.allocate(4).putInt(sequenceNumber);
-        
-        //buffer.position(SEQUENCE_NR);
-        //buffer.put(seqNumber.array());
-        buffer.put(seqNumber.array(), SEQUENCE_NR, 4);
-        
-        //AcknowledgementNumber
+        buffer.position(SEQUENCE_NR);
+        buffer.put(seqNumber.array());
+    
+        // 4. AcknowledgementNumber
         ByteBuffer ACKNumber = ByteBuffer.allocate(4).putInt(ackNumber);
-        buffer.put(ACKNumber.array(), ACK_NUMBER, 4);
+        buffer.position(ACK_NUMBER);
+        buffer.put(ACKNumber.array());
         
-        //ContentLength
+        // 5. ContentLength
         ByteBuffer contentLen = ByteBuffer.allocate(4).putInt(contentLength);
-        buffer.put(contentLen.array(), ACK_NUMBER, 4);
+        buffer.position(CONTENT_LENGTH);
+        buffer.put(contentLen.array());
         
-        //Option
-        ByteBuffer option = ByteBuffer.allocate(4).putInt(contentLength);
-        buffer.put(option.array(), ACK_NUMBER, 4);
+        // 6. Option
+        ByteBuffer opt = ByteBuffer.allocate(4).putInt(option);
+        buffer.position(OPTION_POS);
+        buffer.put(opt.array());
+        
         
         return buffer.array();
     }
@@ -105,17 +131,20 @@ public class ARQPacket {
         return flag;
     }
     
+    public int getFileName(DatagramPacket packet) {
+        byte[] getFlags = Arrays.copyOfRange(packet.getData(), NAME_FILE, NAME_FILE + 4);
+        int namefile = ByteBuffer.wrap(getFlags).getInt();
+        return namefile;
+    }
+    
     public int getSequenceNumber(DatagramPacket packet) {
         byte[] getSeqNr = Arrays.copyOfRange(packet.getData(), SEQUENCE_NR, SEQUENCE_NR + 4);
         int seqNr = ByteBuffer.wrap(getSeqNr).getInt();
         return seqNr;
     }
     
-    public int getFlag(byte[] byteArray) {
-        //return the byteArray into an int.
-        
-        return 0;
-    }
+  
+ 
     
     // Getters and setters for header
     //--------------------------------------------------
@@ -124,9 +153,12 @@ public class ARQPacket {
         return packet;
     }
     
+    
     public int getFlag() {
-        return header[0];
+        return flag;
     }
+    
+  
     
     public int getNameFile() {
         return header[2];
@@ -216,11 +248,18 @@ public class ARQPacket {
         return new DatagramPacket(packet, packet.length, address, port);
     }
     
+    
+    
     public static void main(String[] args) {
         ARQPacket packet = new ARQPacket();
-        packet.setFlags(SYN);
+        byte[] head = packet.getHeader();
+    //    packet.setFlags(SYN);
+
         
-        System.out.println("test" + packet.getHeader());
+        
+        System.out.println("test");
     }
+    
+ 
     
 }

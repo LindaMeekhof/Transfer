@@ -13,8 +13,6 @@ public class Main {
 
         initShutdownHook();
         
-        Raspberry raspberry = new Raspberry();
-        
         while (keepAlive) {
             try {
                 

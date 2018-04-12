@@ -5,8 +5,13 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 
+import client.ARQPacket;
+import client.PacketHandler;
+
 
 public class Raspberry extends Thread {
+    
+    private PacketHandler packethandler = new PacketHandler();
 
     private static boolean alive;
 
@@ -36,6 +41,13 @@ public class Raspberry extends Thread {
         try {
             myServerSocket = new DatagramSocket(portNumber);
             System.out.println("The socketserver binding is succesfully established");
+  
+           
+            //Start thread for handling packets 
+            Thread serverPacketHandler = new Thread(packethandler);
+            serverPacketHandler.start();
+            
+            System.out.println("The packetHandler is started");
         } catch (IOException e) {
             System.out.println("ERROR setting up the serversocket has failed");
             e.printStackTrace();
@@ -59,11 +71,16 @@ public class Raspberry extends Thread {
             
             byte[] dataReceivedPacket = receivedPacket.getData();
             System.out.println("length: " + dataReceivedPacket.length);
-            System.out.println("flag: " + dataReceivedPacket[0]);
-            System.out.println("name: " + dataReceivedPacket[1]);
             
+            ARQPacket arq = new ARQPacket(receivedPacket);
+            int flag = arq.getFlag();
+            System.out.println("RECEIVED flag: " + flag);
+            
+            packethandler.getPacketQueueIn().put(arq);
         } catch (IOException e) {
            System.out.println("ERROR something went wrong with the receiving of DatagramPacket");
+        } catch (InterruptedException e) {
+           System.out.println("Sorry interupted during packet placing in the queue");
         }
     }
     

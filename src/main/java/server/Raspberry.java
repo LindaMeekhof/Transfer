@@ -7,6 +7,8 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import client.ARQPacket;
+
 public class Raspberry extends Thread {
 
     private static boolean alive;
@@ -19,7 +21,9 @@ public class Raspberry extends Thread {
 
         alive = true; 
         while (alive) {
+            int i = 0;
             server.receivePackets();
+            i++;
         }
     }
     
@@ -48,21 +52,29 @@ public class Raspberry extends Thread {
         try {
             DatagramPacket receivedPacket = new DatagramPacket(received, received.length);
             myServerSocket.receive(receivedPacket);
-             
+            int i = 0; 
            
             //UDP
             String sentence = new String(receivedPacket.getData());
-            System.out.println("RECEIVED: " + sentence);
+            System.out.println("RECEIVED: " + i + sentence);
             InetAddress IPAddress = receivedPacket.getAddress();
             System.out.println("RECEIVED: address " + IPAddress);
             int port = receivedPacket.getPort();
             System.out.println("RECEIVED: port source " + port);
             
+            //Header
             byte[] dataReceivedPacket = receivedPacket.getData();
             System.out.println("length: " + dataReceivedPacket.length);
             System.out.println("flag: " + dataReceivedPacket[0]);
             System.out.println("name: " + dataReceivedPacket[1]);
             
+            //create ARQPacket
+            ARQPacket newARQ = new ARQPacket(receivedPacket);
+            int flag = newARQ.getFlag();
+            System.out.println("FLAG received: " + flag);
+            
+            System.out.println("komt hij hier");
+           
         } catch (IOException e) {
            System.out.println("ERROR something went wrong with the receiving of DatagramPacket");
         }
