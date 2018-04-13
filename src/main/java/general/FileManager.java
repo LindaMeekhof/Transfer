@@ -23,7 +23,6 @@ public class FileManager {
     }
     
     public static byte[] FileToByteArray(String path) throws Exception {
-      //  String pathName = "/Users/Linda.Meekhof/Downloads/num2/src/main/java/files/DSC_0042.jpg ";
         
         File fileToTransmit = new File(path);
        
@@ -105,7 +104,7 @@ public class FileManager {
         
         byte[] byteArray =  FileToByteArray(path);
         
-        System.out.println(byteArray);
+      //  System.out.println(byteArray);
         
     }
     

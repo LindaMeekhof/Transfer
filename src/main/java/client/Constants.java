@@ -1,5 +1,7 @@
 package client;
 
+import java.net.InetAddress;
+
 public interface Constants {
 
     //Flags; waar is het pakketje voor
@@ -10,5 +12,10 @@ public interface Constants {
     public static final int FIN = 4;         //finished with the file
     public static final int FILE_REQUEST = 8; //fileRequest 
     public static final int META = 10;
+    
+    public static final int DATASIZE = 300;
+    
+    public static final int DESTINATIONPORT = 6667;
+
     
 }

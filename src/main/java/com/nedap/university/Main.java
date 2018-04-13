@@ -10,8 +10,11 @@ public class Main {
     public static void main(String[] args) {
         running = true;
         System.out.println("Hello, Nedap University!");
+        System.out.println("HELLO");
 
         initShutdownHook();
+        
+        Raspberry pi = new Raspberry();
         
         while (keepAlive) {
             try {

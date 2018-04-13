@@ -80,7 +80,8 @@ public class ClientPi implements Constants {
     
 
     private DatagramSocket clientSocket = null;
-    private static int destinationPort = 6666;
+    private static int destinationPort = 6667;
+ 
     
     /**
      * Create a datagram with only a header
@@ -129,33 +130,7 @@ public class ClientPi implements Constants {
         }
     }
     
-    public byte[] intToBytes( final int i ) {
-        ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES); 
-        bb.putInt(i); 
-        return bb.array();
-    }
-    
-    private int DATASIZE;
-    /**
-     * Create a FILE_REQUEST message
-     * @throws Exception 
-     */
-    public DatagramPacket createFileRequestPacket(String filename, byte[] fileContents) throws Exception {
-       
-        byte[] buffer = new byte[0];
-        ARQPacket fileReq = new ARQPacket(FILE_REQUEST, 0, 0, 0, 0, 0);
-        
-        //Amount of packets
-        int amountPkt= fileContents.length/DATASIZE + 1;
-        byte [] amountPackets = intToBytes(amountPkt);
-        
-        //filename
-        byte[] name = filename.getBytes();
-        
-        System.arraycopy(amountPackets, 0, buffer, 0, amountPackets.length);
-        System.arraycopy(name, 0, buffer, amountPackets.length, name.length);
-        
-        return null;
-    }
+   
+ 
     
 }

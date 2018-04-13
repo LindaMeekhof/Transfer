@@ -67,16 +67,16 @@ task deploy {
     }
 }
 
-task stopping {
-    doLast {
-        ssh.run {
-            session(remotes.pi) {
-                put from: "build/libs/NUM2-${version}.jar", into: "/home/pi/NUM2.jar"
-                execute 'sudo systemctl stop num2.service'
-            }
-        }
-    }
-}
+//task stopping {
+//    doLast {
+//        ssh.run {
+//            session(remotes.pi) {
+//                put from: "build/libs/NUM2-${version}.jar", into: "/home/pi/NUM2.jar"
+//                execute 'sudo systemctl stop num2.service'
+ //           }
+ //       }
+ //   }
+//}
 /*
 // In this section you declare where to find the dependencies of your project
 repositories {
