@@ -12,6 +12,8 @@ import java.nio.file.Path;
 
 public class FileManager {
 
+    
+    
     /**
      * Constructor for FileManager. 
      * The FileMager will handle the transformation from file to byteArray and the other way around. 
@@ -20,9 +22,10 @@ public class FileManager {
         
     }
     
-    public byte[] FileToByteArray(Path path) throws Exception {
-        String pathName = "";
-        File fileToTransmit = new File(pathName);
+    public static byte[] FileToByteArray(String path) throws Exception {
+      //  String pathName = "/Users/Linda.Meekhof/Downloads/num2/src/main/java/files/DSC_0042.jpg ";
+        
+        File fileToTransmit = new File(path);
        
         //read all the data from the file 
         try (FileInputStream fileStream = new FileInputStream(fileToTransmit)) {
@@ -68,14 +71,22 @@ public class FileManager {
         
     }
     
+    
+    private static final String fileDirectory = "files";
+    private static final String slash = "/";
     /**
      * Writes the contents of file array to the specified file.
      * @param fileContents the contents to write
      * @param id the file ID
      */
-    public static void setFileContents(byte[] fileContents, int id) {
+    public static void setFileContents(byte[] fileContents, String fileName) {
         //File path/name/...
-        File fileToWrite = new File("");
+        String workingDirectory = System.getProperty("user.dir");
+
+
+        String filePath = workingDirectory + slash + fileDirectory + slash + fileName;
+
+        File fileToWrite = new File(fileName);
         try (FileOutputStream fileStream = new FileOutputStream(fileToWrite)) {
             for (byte fileContent : fileContents) {
                 fileStream.write(fileContent);
@@ -84,5 +95,19 @@ public class FileManager {
             System.out.println("ERROR by setFileContents");
         }
     }
+
+    
+    
+    
+    public static void main(String[] arg) throws Exception {
+        String workingDirectory = System.getProperty("user.dir");
+       String path = workingDirectory + "/" + "DSC_0042.jpg";
+        
+        byte[] byteArray =  FileToByteArray(path);
+        
+        System.out.println(byteArray);
+        
+    }
+    
     
 }

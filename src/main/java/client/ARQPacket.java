@@ -5,10 +5,13 @@ import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+import general.FileManager;
+
 public class ARQPacket {
 
     //Constants for Header
     private static int HEADERSIZE = 24;
+    private static final int DATASIZE = 300; 
     
     //Flags; waar is het pakketje voor
     private static final int SYN = 1;         //setup, for making a storage for the file that will be send
@@ -36,8 +39,6 @@ public class ARQPacket {
     private int option;
     private int filename;
     
-    private static int DATASIZE = 200;
- //   private static int SEQ_NR = 4;
 
     //byte array Header
     private byte[] header = new byte[HEADERSIZE];
@@ -61,7 +62,19 @@ public class ARQPacket {
         header = getHeader();
     }
     
-    public ARQPacket (int flag, int filename, int sequenceNumber, int ackNumber, int contentLength, int option) {
+    /**
+     * Voorlopig alleen de header.
+     * @param flag
+     * @param filename
+     * @param sequenceNumber
+     * @param ackNumber
+     * @param contentLength
+     * @param option
+     * @throws Exception
+     */
+    public ARQPacket (int flag, int filename, int sequenceNumber, 
+            int ackNumber, int contentLength, int option) throws Exception {
+        int filePointer = 0;
         this.flag = flag;
         this.filename = filename;
         this.sequenceNumber = sequenceNumber;
@@ -70,8 +83,38 @@ public class ARQPacket {
         this.option = option;
         
         header = getHeader();
+        
+    }
+   
+    public ARQPacket (int flag, int filename, int sequenceNumber, 
+            int ackNumber, int contentLength, int option, String path) throws Exception {
+        int filePointer = 0;
+        this.flag = flag;
+        this.filename = filename;
+        this.sequenceNumber = sequenceNumber;
+        this.ackNumber = ackNumber;
+        this.contentLength = contentLength;
+        this.option = option;
+        
+        header = getHeader();
+        
+        //create data part of the ARQ Packet
+        byte[] fileContents = FileManager.FileToByteArray(path);
+        
+        int theSize = Math.min(DATASIZE, fileContents.length - filePointer);
+             
+        System.arraycopy(fileContents, filePointer, data, 0, theSize);
+          
+        //byte array header and data.
+        System.arraycopy(header, 0, packet, 0, HEADERSIZE);  
+        System.arraycopy(fileContents, filePointer, packet, HEADERSIZE, theSize);
     }
     
+    
+    /** 
+     * For receiving packets.
+     * @param datagram
+     */
     public ARQPacket(DatagramPacket datagram) {
        
        byte[] dataReceivedPacket = datagram.getData();
@@ -79,6 +122,7 @@ public class ARQPacket {
        flag = getFlags(datagram);
        filename = getFileName(datagram);
  
+      
     } 
     
     public byte[] getHeader() {
@@ -119,6 +163,10 @@ public class ARQPacket {
         return buffer.array();
     }
 
+    
+    // Getters and setters for header
+    //--------------------------------------------------
+    
  
     /**
      * Get the Flag part of the Datagram packet
@@ -131,75 +179,95 @@ public class ARQPacket {
         return flag;
     }
     
+    /**
+     * Get the FileName part of the DatagramPacket.
+     * @param packet
+     * @return
+     */
     public int getFileName(DatagramPacket packet) {
-        byte[] getFlags = Arrays.copyOfRange(packet.getData(), NAME_FILE, NAME_FILE + 4);
-        int namefile = ByteBuffer.wrap(getFlags).getInt();
+        byte[] getName = Arrays.copyOfRange(packet.getData(), NAME_FILE, NAME_FILE + 4);
+        int namefile = ByteBuffer.wrap(getName).getInt();
         return namefile;
     }
     
+    /**
+     * Get the SequenceNumber part of the DatagramPacket.
+     * @param packet
+     * @return
+     */
     public int getSequenceNumber(DatagramPacket packet) {
         byte[] getSeqNr = Arrays.copyOfRange(packet.getData(), SEQUENCE_NR, SEQUENCE_NR + 4);
         int seqNr = ByteBuffer.wrap(getSeqNr).getInt();
         return seqNr;
     }
     
-  
+    /**
+     * Get the AckNumber part of the DatagramPacket
+     * @param packet
+     * @return
+     */
+    public int getACKNumber(DatagramPacket packet) {
+        byte[] getACK = Arrays.copyOfRange(packet.getData(), ACK_NUMBER, ACK_NUMBER + 4);
+        int ackNr = ByteBuffer.wrap(getACK).getInt();
+        return ackNr;
+    }
+    
+    /**
+     * Get the ContentLength of the DatagramPacket.
+     * @return
+     */
+    public int getContentLength(DatagramPacket packet) {
+        byte[] getLength = Arrays.copyOfRange(packet.getData(), CONTENT_LENGTH, CONTENT_LENGTH + 4);
+        int length = ByteBuffer.wrap(getLength).getInt();
+        return length;
+    }
+    
+    /**
+     * Get the OptionsField of the DatagramPacket.
+     * @return
+     */
+    public int getOptions(DatagramPacket packet) {
+        byte[] getOpt = Arrays.copyOfRange(packet.getData(), OPTION_POS, OPTION_POS + 4);
+        int opt = ByteBuffer.wrap(getOpt).getInt();
+        return opt;
+    }
  
-    
-    // Getters and setters for header
-    //--------------------------------------------------
-    
+   
     public byte[] getPacket() {
         return packet;
     }
-    
     
     public int getFlag() {
         return flag;
     }
     
   
-    
-    public int getNameFile() {
-        return header[2];
-    }
-
-    public int getSequenceNumber() {
-        return header[SEQUENCE_NR];
+    //Setters
+    public void setFlags(int flag) {
+        this.flag = flag;
     }
     
-    public int getACKNumber() {
-        return header[ACK_NUMBER];
-    }
-    
-    public int getContentLength() {
-        return header[CONTENT_LENGTH];
-    }
-    
-    
-    //Setters 
-    public void setNameFile() {
-        //TODO
+    public void setNameFile(int filename) {
+        this.filename = filename;
     }
     
     public void setSequenceNumber(int sequenceNumber) {
         this.sequenceNumber = sequenceNumber;
     }
     
-    
-    public void setFlags(int flag) {
-        this.flag = flag;
+    public void setACKNumber(int ackNumber) {
+        this.ackNumber = ackNumber;
     }
     
-    public void setACKNumber() {
-        header[4] = 5;
+    public void setContentLength(int contentLength) {
+        this.contentLength = contentLength;
     }
     
-    public void setContentLength() {
-        header[6] = 1;
+    public void setOptions(int option) {
+        this.option = option;
     }
     
-    //Setters for flag field
+
    
     
     //Integer is 31 bits.
@@ -210,7 +278,7 @@ public class ARQPacket {
         return Arrays.copyOfRange(buffer.array(), 1, 4);
     }
     
-    public byte[] intTo3Bytes( final int i ) {
+    public byte[] intToBytes( final int i ) {
         ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES); 
         bb.putInt(i); 
         return bb.array();
@@ -248,17 +316,23 @@ public class ARQPacket {
         return new DatagramPacket(packet, packet.length, address, port);
     }
     
+
     
     
+    
+    /**
+     * Main to test.
+     * @param args
+     */
     public static void main(String[] args) {
         ARQPacket packet = new ARQPacket();
         byte[] head = packet.getHeader();
     //    packet.setFlags(SYN);
-
-        
+ 
         
         System.out.println("test");
     }
+    
     
  
     

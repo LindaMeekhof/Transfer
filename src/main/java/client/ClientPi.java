@@ -1,14 +1,16 @@
 package client;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 
 public class ClientPi implements Constants {
 
-    public static void main(String []args) {
+    public static void main(String []args) throws Exception {
 
         System.out.println("Try to start a client for connecting to Raspberry");
         /**
@@ -126,4 +128,34 @@ public class ClientPi implements Constants {
             }
         }
     }
+    
+    public byte[] intToBytes( final int i ) {
+        ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES); 
+        bb.putInt(i); 
+        return bb.array();
+    }
+    
+    private int DATASIZE;
+    /**
+     * Create a FILE_REQUEST message
+     * @throws Exception 
+     */
+    public DatagramPacket createFileRequestPacket(String filename, byte[] fileContents) throws Exception {
+       
+        byte[] buffer = new byte[0];
+        ARQPacket fileReq = new ARQPacket(FILE_REQUEST, 0, 0, 0, 0, 0);
+        
+        //Amount of packets
+        int amountPkt= fileContents.length/DATASIZE + 1;
+        byte [] amountPackets = intToBytes(amountPkt);
+        
+        //filename
+        byte[] name = filename.getBytes();
+        
+        System.arraycopy(amountPackets, 0, buffer, 0, amountPackets.length);
+        System.arraycopy(name, 0, buffer, amountPackets.length, name.length);
+        
+        return null;
+    }
+    
 }

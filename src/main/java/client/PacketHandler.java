@@ -65,8 +65,10 @@ public class PacketHandler implements Runnable {
                     case FIN :
                         System.out.println("Ready with sending this file");
                         //TODO handle fin, checking if file integrity
+                        break;
                     case FILE_REQUEST :
                         System.out.println("FILEREQUEST ");
+                        //TODO handle FI
                         break;
                     default :
                         System.out.println("Invalid flag, drop the package");
@@ -76,10 +78,13 @@ public class PacketHandler implements Runnable {
         }
     }
 
+    
+    
+    
     /**
-     * Method for handling the setup before sending the data. 
+     * Method for handling the fileRequest before sending the data. 
      */
-    public void handleSetup() {
+    public void FileRequest(ARQPacket packet) {
         
     }
     
