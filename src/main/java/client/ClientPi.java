@@ -58,13 +58,13 @@ public class ClientPi implements Constants {
 //        System.out.println("welkom");
         
         // Create datagram with ARQPacket *****************************************************
-        ARQPacket arq = new ARQPacket(8, 2, 3, 4, 5, 6);
-        byte[] head = arq.getHeader();
-        System.out.println(head);
-        DatagramPacket sendHeader = new DatagramPacket(head, head.length, 
-                IPAddress, destinationPort);
-        client.send(sendHeader);
-        client.getPacketQueueOut().offer(arq);
+//        ARQPacket arq = new ARQPacket(8, 2, 3, 4, 5, 6);
+//        byte[] head = arq.getHeader();
+//        System.out.println(head);
+//        DatagramPacket sendHeader = new DatagramPacket(head, head.length, 
+//                IPAddress, destinationPort);
+//       // client.send(sendHeader);
+//        client.getPacketQueueOut().offer(arq);
 
         
 //        ARQPacket arq1 = new ARQPacket(1, 2, 3, 4, 5, 6);
@@ -81,8 +81,10 @@ public class ClientPi implements Constants {
 //        DatagramPacket fileReq1 = createDatagram(fileReq, IPAddress, destinationPort);
 //        client.send(fileReq1);
 //        
-//        String filename = "Testing filename";
-//        client.getPacketHandler().createFileRequestPacket(filename);
+        String filename = "Testing filename";
+        client.getPacketHandler().createFileRequestPacket(filename);
+        
+        
         
         
         boolean alive = true;
@@ -189,14 +191,19 @@ public class ClientPi implements Constants {
      * @param destinationPort
      * @return
      */
-    public static DatagramPacket createDatagram(ARQPacket arq, 
-            InetAddress IPAddress, int destinationPort) {
-        byte[] head = arq.getHeader();
-        System.out.println(head);
-        DatagramPacket datagram = new DatagramPacket(head, head.length, 
-                IPAddress, destinationPort);
-        return datagram;
-    }
+//    public static DatagramPacket createDatagram(ARQPacket arq, 
+//            InetAddress IPAddress, int destinationPort) {
+//      
+//        
+//        byte[] packet = arq.getPacket();
+//        
+//        System.out.println(packet);
+//        DatagramPacket datagram = 
+//                new DatagramPacket(packet, packet.length, IPAddress, destinationPort);
+////        DatagramPacket datagram = new DatagramPacket(head, head.length, 
+////                IPAddress, destinationPort);
+//        return datagram;
+//    }
     
 
     /**
@@ -206,21 +213,21 @@ public class ClientPi implements Constants {
     private void send(DatagramPacket sendPacket) {
         if (clientSocket != null) {
             try {
-                ARQPacket packet = null;
-                if (!packetQueueOut.isEmpty()) {
-                
-                  System.out.println("komt niet hier");
-                    try {
-                       packet = packetQueueOut.poll(TIMEOUT, TimeUnit.MILLISECONDS);
-                    } catch (InterruptedException e) { 
-                        System.out.println("Something went wrong with ARQPacket dequeue in piclient");
-                    }
-                 
-                InetAddress IPaddress = getIPAddress();
-                DatagramPacket packetFromQueue = createDatagram(packet, IPaddress, destinationPort);    
-                
-                clientSocket.send(packetFromQueue);
-                }
+//                ARQPacket packet = null;
+//                if (!packetQueueOut.isEmpty()) {
+//                
+//                  System.out.println("komt niet hier");
+//                    try {
+//                       packet = packetQueueOut.poll(TIMEOUT, TimeUnit.MILLISECONDS);
+//                    } catch (InterruptedException e) { 
+//                        System.out.println("Something went wrong with ARQPacket dequeue in piclient");
+//                    }
+//                 
+//                InetAddress IPaddress = getIPAddress();
+//                DatagramPacket packetFromQueue = createDatagram(packet, IPaddress, destinationPort);    
+//                
+//                clientSocket.send(packetFromQueue);
+//                }
                 
              //   System.out.println("komt hier");
                 clientSocket.send(sendPacket);
@@ -246,12 +253,12 @@ public class ClientPi implements Constants {
             if (!packetQueueOut.isEmpty()) {
                 ARQPacket packet = null;
                 DatagramPacket packetFromQueue = null;
-                System.out.println("komt niet hier");
+                System.out.println("que verzonden");
                 try {
                     packet = packetQueueOut.poll(TIMEOUT, TimeUnit.MILLISECONDS);
 
                     InetAddress IPaddress = getIPAddress();
-                    packetFromQueue = createDatagram(packet, IPaddress, destinationPort);    
+                    packetFromQueue = packetHandler.createDatagram(packet, IPaddress, destinationPort);    
                     clientSocket.send(packetFromQueue);
                 } catch (InterruptedException e) { 
                     System.out.println("Something went wrong with ARQPacket dequeue in piclient");

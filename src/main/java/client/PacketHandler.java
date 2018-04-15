@@ -83,7 +83,7 @@ public class PacketHandler implements Runnable, Constants {
                         //TODO handle fin, checking if file integrity
                         break;
                     case FILE_REQUEST :
-                        System.out.println("FILEREQUEST ");
+                        System.out.println("RECEIVED FILEREQUEST ");
                         //TODO handle FI
                         break;
                     default :
@@ -126,7 +126,7 @@ public class PacketHandler implements Runnable, Constants {
 
     // create different kind of packets *******************************************
     /**
-     * Create a FILE_REQUEST message
+     * Create a FILE_REQUEST message de goede 
      * @throws Exception 
      */
     public void createFileRequestPacket(String filename) throws Exception {
@@ -140,9 +140,23 @@ public class PacketHandler implements Runnable, Constants {
         arq.setContentLength(filename.getBytes().length);
         
         //setData
-        arq.setData(filename);    
-
-      //  send(arq);
+        byte[] data = filename.getBytes();
+        arq.setData(data);    
+        
+        //bytebuffer for packet (header + data)
+        int fileNameSize = filename.getBytes().length;
+        byte[] packet = new byte[HEADERSIZE + fileNameSize];
+        
+        byte[] header = arq.getHeader();
+        //First enter the header content
+        System.arraycopy(header, 0, packet, 0, HEADERSIZE);
+        
+        //Secondly enter the data content
+        System.arraycopy(data, 0, packet, header.length, data.length);
+        arq.setPacket(packet);
+        
+        send(arq);
+        System.out.println(packet);
 
     }
     
@@ -215,7 +229,7 @@ public class PacketHandler implements Runnable, Constants {
      * Sending the ARQ to the queue
      */
     public void send(ARQPacket packet) {
-        client.packetQueueOut.offer(packet);
+        clientPI.packetQueueOut.offer(packet);
     }
  
    /**
@@ -267,7 +281,7 @@ public class PacketHandler implements Runnable, Constants {
         return datagram;
     }
 
-    //hier gebleven
+
    
     public void sendData(DatagramPacket data) {
         // TODO Auto-generated method stub
@@ -297,7 +311,20 @@ public class PacketHandler implements Runnable, Constants {
         
     }
 
-   
+    
+    
+    /**
+     * Main to test.
+     * @param args
+     * @throws Exception 
+     */
+    public static void main(String[] args) throws Exception {
+        ClientPi pi = new ClientPi();
+        PacketHandler handler = new PacketHandler(pi);
+        handler.createFileRequestPacket("test");
+        
+     
+    }
         
 
 }

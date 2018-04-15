@@ -141,11 +141,11 @@ public class Raspberry implements Runnable{
                 System.out.println("RECEIVED: port source " + port);
                 
                 byte[] dataReceivedPacket = receivedPacket.getData();
-                System.out.println("length: " + dataReceivedPacket.length);
+                System.out.println("RECEIVED: length " + dataReceivedPacket.length);
                 
                 ARQPacket arq = new ARQPacket(receivedPacket);
                 int flag = arq.getFlag();
-                System.out.println("RECEIVED flag: " + flag);
+              //  System.out.println("RECEIVED flag: " + flag);
                 
                 packethandler.getPacketQueueIn().put(arq);
                 

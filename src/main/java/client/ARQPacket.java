@@ -49,6 +49,10 @@ public class ARQPacket {
     
     private byte[] packet = new byte[0];
     
+    public void setPacket(byte[] packet) {
+        this.packet = packet;
+    }
+
     /**
      * ARQPAcket constructor
      */

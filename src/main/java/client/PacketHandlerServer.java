@@ -94,7 +94,7 @@ public class PacketHandlerServer implements Runnable, Constants {
                         //TODO handle fin, checking if file integrity
                         break;
                     case FILE_REQUEST :
-                        System.out.println("FILEREQUEST ");
+                        System.out.println("RECEIVED FILEREQUEST ");
                         
                         System.out.println("FLAG " + packet.getFlag());
                         System.out.println("FILE_ID " + packet.getFileName());
@@ -103,19 +103,28 @@ public class PacketHandlerServer implements Runnable, Constants {
                         System.out.println("CONTENT_LENGTH " + packet.getContentLength());
                         System.out.println("OPTION " + packet.getOptions());
                         
-                        String str = null;
-                        try {
-                            str = new String(packet.getData(), "UTF-8");
-                        } catch (UnsupportedEncodingException e) {
-                            System.out.println("Something went wrong with reading name");
-                            e.printStackTrace();
-                        }
-                        System.out.println("GET DATA" + str);
+//                        String str = null;
+//                        try {
+//                            str = new String(packet.getData(), "UTF-8");
+//                        } catch (UnsupportedEncodingException e) {
+//                            System.out.println("Something went wrong with reading name");
+//                            e.printStackTrace();
+//                        }
+                        String sentence = new String(packet.getData());
+                        System.out.println("GET DATA" + sentence);
             
                         
                         break;
                     default :
                         System.out.println("Invalid flag, drop the package");
+                        System.out.println("RECEIVED INVALID ");
+                        
+                        System.out.println("FLAG " + packet.getFlag());
+                        System.out.println("FILE_ID " + packet.getFileName());
+                        System.out.println("SEQ NR " + packet.getSequenceNumber());
+                        System.out.println("ACK NR " + packet.getACKNumber());
+                        System.out.println("CONTENT_LENGTH " + packet.getContentLength());
+                        System.out.println("OPTION " + packet.getOptions());
                     }
                 }
             }
@@ -175,7 +184,8 @@ public class PacketHandlerServer implements Runnable, Constants {
         arq.setContentLength(filename.getBytes().length);
         
         //setData
-        arq.setData(filename);    
+        byte[] data = filename.getBytes();
+        arq.setData(data);    
 
         send(arq);
 
