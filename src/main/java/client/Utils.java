@@ -1,5 +1,6 @@
 package client;
 
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
@@ -52,7 +53,7 @@ public class Utils {
     public static String getPathFromName(String fileName) {
         String workingDirectory = System.getProperty("user.dir");
 
-        String filePath = workingDirectory + slash + fileDirectory + slash + fileName;
+        String filePath = workingDirectory + File.separator + fileDirectory + File.separator + fileName;
         
         return filePath;
     }

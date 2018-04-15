@@ -23,4 +23,6 @@ public interface Constants {
     public static final int DESTINATIONPORT = 6667;
 
     
+    public final int EMPTY = 0;
+    
 }

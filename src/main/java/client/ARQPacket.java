@@ -34,6 +34,11 @@ public class ARQPacket {
     //header info
     private int flag; 
     private int fileID;
+
+
+
+
+
     private int sequenceNumber;
     private int ackNumber;
     private int contentLength;  
@@ -57,14 +62,7 @@ public class ARQPacket {
      * ARQPAcket constructor
      */
     public ARQPacket () {
-//        flag = 11;
-//        fileID = 22;
-//        sequenceNumber = 3;
-//        ackNumber = 4;
-//        contentLength = 5;
-//        option = 6;
-//        
-//        header = getHeader();
+
     }
     
     /**
@@ -88,6 +86,13 @@ public class ARQPacket {
         this.option = option;
         
         header = getHeader();
+        
+        byte[] packet = new byte[HEADERSIZE];
+        
+        byte[] header = getHeader();
+        //First enter the header content
+        System.arraycopy(header, 0, packet, 0, HEADERSIZE);
+        setPacket(packet);
         
     }
     
@@ -375,7 +380,14 @@ public class ARQPacket {
         this.data = data;
     }
     
-  
+    public int getFileID() {
+        return fileID;
+    }
+
+    public void setFileID(int fileID) {
+        this.fileID = fileID;
+    }
+
     
 
     

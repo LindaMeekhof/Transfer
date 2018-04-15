@@ -44,48 +44,19 @@ public class ClientPi implements Constants {
         // TestPacket ************************************************************************************ 
         ClientPi client = new ClientPi();
         
-       
 
         /**
          * Sending Datagram. First construct a Datagram with header and a piece of data. 
          */
-//        String str = "welcome testing";
-//        //      byte[] sendData = new byte[1024];
-//        DatagramPacket sendPacket = new DatagramPacket(str.getBytes(), str.length(), IPAddress, destinationPort);
-//        //  DatagramPacket sendPacket = new DatagramPacket(str.getBytes(), str.length(), raspberryAddress, destinationPort);
-//        client.send(sendPacket);
-//        
-//        System.out.println("welkom");
-        
-        // Create datagram with ARQPacket *****************************************************
-//        ARQPacket arq = new ARQPacket(8, 2, 3, 4, 5, 6);
-//        byte[] head = arq.getHeader();
-//        System.out.println(head);
-//        DatagramPacket sendHeader = new DatagramPacket(head, head.length, 
-//                IPAddress, destinationPort);
-//       // client.send(sendHeader);
-//        client.getPacketQueueOut().offer(arq);
 
-        
-//        ARQPacket arq1 = new ARQPacket(1, 2, 3, 4, 5, 6);
-//        byte[] head1 = arq1.getHeader();
-//        System.out.println(head1);
-//        DatagramPacket sendHeader1 = new DatagramPacket(head1, head1.length, 
-//                IPAddress, destinationPort);
-//        client.send(sendHeader1);
-//        
-//        //Create a FileRequest Message
-//        ARQPacket fileReq = new ARQPacket(FILE_REQUEST, 0, 0, 0, 0, 0);
-//        
-//        
-//        DatagramPacket fileReq1 = createDatagram(fileReq, IPAddress, destinationPort);
-//        client.send(fileReq1);
-//        
-        String filename = "Testing filename";
-        client.getPacketHandler().createFileRequestPacket(filename);
-        
-        
-        
+//        String filename = "testbestand.txt";
+//        client.getPacketHandler().createFileRequestPacket(filename);
+
+        String content = "ackack";
+        ARQPacket arq = new ARQPacket();
+        arq.setSequenceNumber(11);
+        client.getPacketHandler().createAcknowledgementMessage(arq);
+
         
         boolean alive = true;
         while (alive) {
@@ -184,26 +155,7 @@ public class ClientPi implements Constants {
 
  
     
-    /**
-     * Create a datagram with only a header
-     * @param arq
-     * @param IPAddress
-     * @param destinationPort
-     * @return
-     */
-//    public static DatagramPacket createDatagram(ARQPacket arq, 
-//            InetAddress IPAddress, int destinationPort) {
-//      
-//        
-//        byte[] packet = arq.getPacket();
-//        
-//        System.out.println(packet);
-//        DatagramPacket datagram = 
-//                new DatagramPacket(packet, packet.length, IPAddress, destinationPort);
-////        DatagramPacket datagram = new DatagramPacket(head, head.length, 
-////                IPAddress, destinationPort);
-//        return datagram;
-//    }
+
     
 
     /**
@@ -213,6 +165,12 @@ public class ClientPi implements Constants {
     private void send(DatagramPacket sendPacket) {
         if (clientSocket != null) {
             try {
+                byte[] receivedData = new byte[1024];
+                DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
+                clientSocket.receive(receivePacket);
+                
+                
+                
 //                ARQPacket packet = null;
 //                if (!packetQueueOut.isEmpty()) {
 //                
@@ -260,6 +218,26 @@ public class ClientPi implements Constants {
                     InetAddress IPaddress = getIPAddress();
                     packetFromQueue = packetHandler.createDatagram(packet, IPaddress, destinationPort);    
                     clientSocket.send(packetFromQueue);
+                    
+                    
+                    byte[] receivedData = new byte[1024];
+                    DatagramPacket receivedPacket = new DatagramPacket(receivedData, receivedData.length);
+                    clientSocket.receive(receivedPacket);
+                    
+                    //UDP
+                    String sentence = new String(receivedPacket.getData());
+                    System.out.println("RECEIVED: " + sentence);
+                    InetAddress IPAddress = receivedPacket.getAddress();
+                    System.out.println("RECEIVED: address " + IPAddress);
+                    int port = receivedPacket.getPort();
+                    System.out.println("RECEIVED: port source " + port);
+                    
+                    byte[] dataReceivedPacket = receivedPacket.getData();
+                    System.out.println("RECEIVED: length " + dataReceivedPacket.length);
+                    
+                    ARQPacket arq = new ARQPacket(receivedPacket);
+                    getPacketQueueIn().put(arq);
+                    
                 } catch (InterruptedException e) { 
                     System.out.println("Something went wrong with ARQPacket dequeue in piclient");
                 } catch (IOException e) {

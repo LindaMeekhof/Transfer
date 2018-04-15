@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.nedap.university.Raspberry;
 
+import general.DownloadManager;
 import general.FileManager;
 
 public class PacketHandler implements Runnable, Constants {
@@ -19,11 +20,30 @@ public class PacketHandler implements Runnable, Constants {
     public HashMap<String, Integer> mapFileNames = new HashMap<String, Integer>();
     public ArrayList<String> downLoading = new ArrayList<String>();
     public ArrayList<String> upLoading = new ArrayList<String>();
-
+    public HashMap<Integer, DownloadManager> idToDownloadManager = new HashMap<Integer, DownloadManager>();
     private Boolean running = true;
     private Raspberry client;
     private ClientPi clientPI;
+    
+    // Getters and setters *********************************
+    
+    public HashMap<Integer, DownloadManager> getIdToDownloadManager() {
+        return idToDownloadManager;
+    }
 
+    public void setIdToDownloadManager(HashMap<Integer, DownloadManager> idToDownloadManager) {
+        this.idToDownloadManager = idToDownloadManager;
+    }
+
+    public BlockingQueue<ARQPacket> getPacketQueueIn() {
+        return client.packetQueueIn;
+    }
+
+    public void setPacketQueueIn(BlockingQueue<ARQPacket> packetQueueIn) {
+        this.clientPI.packetQueueIn = packetQueueIn;
+    }
+
+    // Constructor *********************************
    /**
     * Constructor PacketHandler
     */
@@ -33,19 +53,6 @@ public class PacketHandler implements Runnable, Constants {
     
     public PacketHandler(ClientPi client) {
         this.clientPI = client;
-    }
-
-    /**
-     * Getters and setters
-     * @return
-     */
-    public BlockingQueue<ARQPacket> getPacketQueueIn() {
-        return client.packetQueueIn;
-    }
-
-
-    public void setPacketQueueIn(BlockingQueue<ARQPacket> packetQueueIn) {
-        this.clientPI.packetQueueIn = packetQueueIn;
     }
 
 
@@ -61,7 +68,7 @@ public class PacketHandler implements Runnable, Constants {
             while (hasPackets()) {
                 //Get packet and process on flag 
 
-                ARQPacket packet = client.packetQueueIn.poll();
+                ARQPacket packet = clientPI.packetQueueIn.poll();
 
                 if (packet != null) {
                     int flag = packet.getFlag();
@@ -73,38 +80,127 @@ public class PacketHandler implements Runnable, Constants {
                         break;
                     case ACK :
                         System.out.println("ACK packets for packet");
-                        // TODO handle ACK
+                        System.out.println("RECEIVED ACK ");
+                        System.out.println("FLAG " + packet.getFlag());
+                        System.out.println("FILE_ID " + packet.getFileName());
+                        System.out.println("SEQ NR " + packet.getSequenceNumber());
+                        System.out.println("ACK NR " + packet.getACKNumber());
+                        System.out.println("CONTENT_LENGTH " + packet.getContentLength());
+                        System.out.println("OPTION " + packet.getOptions());
+                        System.out.println("GET DATA" + packet.getData());
+                        System.out.println("");
                         break;
                     case SYN_ACK :
-                        System.out.println("SYN_ACK ga door met verzenden");
+                     
+                        System.out.println("RECEIVED DOORGAAN ");
+                        System.out.println("FLAG " + packet.getFlag());
+                        System.out.println("FILE_ID " + packet.getFileName());
+                        System.out.println("SEQ NR " + packet.getSequenceNumber());
+                        System.out.println("ACK NR " + packet.getACKNumber());
+                        System.out.println("CONTENT_LENGTH " + packet.getContentLength());
+                        System.out.println("OPTION " + packet.getOptions());
+                        System.out.println("GET DATA" + packet.getData());
+                        System.out.println("");
                         break;
                     case FIN :
                         System.out.println("Ready with sending this file");
-                        //TODO handle fin, checking if file integrity
+                        System.out.println("RECEIVED FIN ");
+                        System.out.println("FLAG " + packet.getFlag());
+                        System.out.println("FILE_ID " + packet.getFileName());
+                        System.out.println("SEQ NR " + packet.getSequenceNumber());
+                        System.out.println("ACK NR " + packet.getACKNumber());
+                        System.out.println("CONTENT_LENGTH " + packet.getContentLength());
+                        System.out.println("OPTION " + packet.getOptions());
+                        System.out.println("GET DATA" + packet.getData());
+                        System.out.println("");
+                        
+                        break;
+                    case META :
+                        System.out.println("Ready with sending this file");
+                        System.out.println("RECEIVED META ");
+                        System.out.println("FLAG " + packet.getFlag());
+                        System.out.println("FILE_ID " + packet.getFileName());
+                        System.out.println("SEQ NR " + packet.getSequenceNumber());
+                        System.out.println("ACK NR " + packet.getACKNumber());
+                        System.out.println("CONTENT_LENGTH " + packet.getContentLength());
+                        System.out.println("OPTION " + packet.getOptions());
+                        System.out.println("GET DATA" + packet.getData());
+                        System.out.println("");
                         break;
                     case FILE_REQUEST :
                         System.out.println("RECEIVED FILEREQUEST ");
-                        //TODO handle FI
+                        
+                        System.out.println("FLAG " + packet.getFlag());
+                        System.out.println("FILE_ID " + packet.getFileName());
+                        System.out.println("SEQ NR " + packet.getSequenceNumber());
+                        System.out.println("ACK NR " + packet.getACKNumber());
+                        System.out.println("CONTENT_LENGTH " + packet.getContentLength());
+                        System.out.println("OPTION " + packet.getOptions());
+
+                        String filename = new String(packet.getData());
+                        System.out.println("GET DATA " + filename);
+                        
+                        ArrayList filenames = FileManager.getFileNames();
+                        System.out.println(filenames);
+                        if (filenames.contains(filename)) {
+                            System.out.println("The file exists" + filename);
+                            
+                            DownloadManager downloadManager = new DownloadManager(filename, this);
+                            
+                            try {
+                                System.out.println(filename);
+                                downloadManager.procesFileRequestCreateMETApacket(packet);
+                            } catch (Exception e) {
+                                System.out.println("META data failure");
+                                e.printStackTrace();
+                            }
+                            
+                            
+                        } else {
+                            System.out.println("The file not exists" +  filename);
+                            
+                          
+                            DownloadManager downloadManager = new DownloadManager(filename, this);
+                            
+                            try {
+                               
+                                downloadManager.procesFileRequestCreateMETApacket(packet);
+                            } catch (Exception e) {
+                                System.out.println("META data failure");
+                                e.printStackTrace();
+                            }
+                            
+                        }
+
                         break;
                     default :
                         System.out.println("Invalid flag, drop the package");
+                        
                     }
                 }
+            }
+            
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
             }
         }
     }
 
-    public boolean hasPackets() {
-        return !clientPI.packetQueueIn.isEmpty();
-    }
-    
+ 
     
     
     // create different kind of packets *******************************************
     /**
      * Create a FILE_REQUEST message
      * @throws Exception 
-     */
+     */   
+    public boolean hasPackets() {
+        return !clientPI.packetQueueIn.isEmpty();
+    }
+    
     public void createFileRequestPacket(String filename, InetAddress address) throws Exception {
        
         ARQPacket arq = new ARQPacket();
@@ -139,7 +235,7 @@ public class PacketHandler implements Runnable, Constants {
         arq.setACKNumber(1); //TODO
         arq.setContentLength(filename.getBytes().length);
         
-        //setData
+        //setDatas
         byte[] data = filename.getBytes();
         arq.setData(data);    
         
@@ -160,20 +256,22 @@ public class PacketHandler implements Runnable, Constants {
 
     }
     
-    public void createAcknowledgementMessage(ARQPacket packet) {
-        ARQPacket arq = new ARQPacket();
+    /**
+     * create an Acknowledgement packet. Only header.
+     * @param packet
+     * @throws Exception 
+     */
+    public void createAcknowledgementMessage(ARQPacket packet) throws Exception {
         
-        //setflags
-        arq.setFlags(ACK);
-        arq.setSequenceNumber(2);  //TODO
-
-        arq.setACKNumber(packet.getSequenceNumber()); //TODO
-
+        int ackNumber = packet.getSequenceNumber() + 1;
+        int fileID = packet.getFileID();
+        ARQPacket arq = new ARQPacket(ACK, fileID, EMPTY, 
+                ackNumber, EMPTY, EMPTY);
+ 
         send(arq);
-      
-//        //Datagram maken met ARQ Packet
-//        DatagramPacket datagram = createDatagram(arq, address, DESTINATIONPORT);
+        System.out.println(arq);
     }
+
     
     /**
      * ContinueDownloading. Gevolgd op een ACK.
@@ -201,27 +299,27 @@ public class PacketHandler implements Runnable, Constants {
      * Create META packet
      * @throws Exception 
      */
-    public void procesFileRequestCreateMETApacket(ARQPacket packet) throws Exception {
-        
-        //content METApacket
-        byte[] buffer = packet.getPacket();
-        String name = new String(buffer, "UTF=8");
-        byte[] content = getAmountOfPackets(name);
-        int contentLength = content.length;
-        
-        ARQPacket arq = new ARQPacket();
-        arq.setFlags(META);
-        arq.setNameFile(33); //TODO veranderen in een echt number
-        arq.setSequenceNumber(44); //TODO veranderen in een echt number
-        arq.setContentLength(contentLength);
-        
-        arq.setData(content);
-        send(arq);
-        
-        //misschien alleen een ARQpacket en die in de wachtrij zetten om datagram te creeren.
-        InetAddress raspberry = InetAddress.getByName("192.168.1.2");
-        DatagramPacket datagram = createDatagram(arq, raspberry, DESTINATIONPORT);  
-    }
+//    public void procesFileRequestCreateMETApacket(ARQPacket packet) throws Exception {
+//        
+//        //content METApacket
+//        byte[] buffer = packet.getPacket();
+//        String name = new String(buffer, "UTF=8");
+//        byte[] content = getAmountOfPackets(name);
+//        int contentLength = content.length;
+//        
+//        ARQPacket arq = new ARQPacket();
+//        arq.setFlags(META);
+//        arq.setNameFile(33); //TODO veranderen in een echt number
+//        arq.setSequenceNumber(44); //TODO veranderen in een echt number
+//        arq.setContentLength(contentLength);
+//        
+//        arq.setData(content);
+//        send(arq);
+//        
+//        //misschien alleen een ARQpacket en die in de wachtrij zetten om datagram te creeren.
+//        InetAddress raspberry = InetAddress.getByName("192.168.1.2");
+//        DatagramPacket datagram = createDatagram(arq, raspberry, DESTINATIONPORT);  
+//    }
     
     
     
@@ -232,20 +330,20 @@ public class PacketHandler implements Runnable, Constants {
         clientPI.packetQueueOut.offer(packet);
     }
  
-   /**
-    * Return a byteArray for the amount of packets will be send for sending the file.
-    * @param filename
-    * @return
- * @throws Exception 
-    */
-   public byte[] getAmountOfPackets(String filename) throws Exception {
-       
-       String path = Utils.getPathFromName(filename);
-       byte[] fileContents = FileManager.FileToByteArray(path);       
-       int amountPackets = fileContents.length/DATASIZE + 1;  
-       return Utils.intToBytes(amountPackets);
-   }
-   
+//   /**
+//    * Return a byteArray for the amount of packets will be send for sending the file.
+//    * @param filename
+//    * @return
+// * @throws Exception 
+//    */
+//   public byte[] getAmountOfPackets(String filename) throws Exception {
+//       
+//       String path = Utils.getPathFromName(filename);
+//       byte[] fileContents = FileManager.FileToByteArray(path);       
+//       int amountPackets = fileContents.length/DATASIZE + 1;  
+//       return Utils.intToBytes(amountPackets);
+//   }
+//   
     /**
      *  
      * @param timeout

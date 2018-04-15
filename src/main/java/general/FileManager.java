@@ -9,6 +9,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 
+import client.Utils;
+
 
 
 public class FileManager {
@@ -23,10 +25,18 @@ public class FileManager {
         
     }
     
-    public static byte[] FileToByteArray(String path) throws Exception {
+    public static byte[] FileToByteArray(String filename) throws Exception {
+        String workingDirectory = System.getProperty("user.dir");
         
-        File fileToTransmit = new File(path);
-       
+        System.out.println(new File(".").getAbsoluteFile() + "absolute");
+        
+        String path = workingDirectory + File.separator + fileMap + File.separator + filename; 
+       // System.out.println(filename);
+       // System.out.println(path);
+        
+        File fileToTransmit = new File(path.trim());
+   
+        
         //read all the data from the file 
         try (FileInputStream fileStream = new FileInputStream(fileToTransmit)) {
         
@@ -41,6 +51,7 @@ public class FileManager {
                     throw new Exception("File is smaller than indicated");
                 }
                 
+                //print the content
                 fileContentToBytes[i] = (byte) nextByte;
                 System.out.print((char) fileContentToBytes[i]);
             }
@@ -83,10 +94,12 @@ public class FileManager {
         //File path/name/...
         String workingDirectory = System.getProperty("user.dir");
 
+        System.out.println(new File(".").getAbsoluteFile() + "absolute");
 
-        String filePath = workingDirectory + slash + fileDirectory + slash + fileName;
-
-        File fileToWrite = new File(fileName);
+        String filePath = workingDirectory + File.separator + fileDirectory + File.separator + fileName;
+        System.out.println(filePath);
+        
+        File fileToWrite = new File(filePath.trim());
         try (FileOutputStream fileStream = new FileOutputStream(fileToWrite)) {
             for (byte fileContent : fileContents) {
                 fileStream.write(fileContent);
@@ -107,7 +120,7 @@ public class FileManager {
         
         String workingDirectory = System.getProperty("user.dir");
         String path = workingDirectory + File.separator + fileMap;
-        File folder = new File(path);
+        File folder = new File(path.trim());
  
         File[] theFiles = folder.listFiles();
         for (int i = 0; i < theFiles.length; i++) {
@@ -136,18 +149,15 @@ public class FileManager {
 
     
     public static void main(String[] arg) throws Exception {
-        String workingDirectory = System.getProperty("user.dir");
+       String workingDirectory = System.getProperty("user.dir");
        String path = workingDirectory + "/" + "DSC_0042.jpg";
         
        
-        byte[] byteArray =  FileToByteArray(path);
+    
         
         
-        String fileMap = "files";
-        String workingDirectory1 = System.getProperty("user.dir");
-       String path1 = workingDirectory1 +  File.separator + fileMap + File.separator + "testbestand.txt";
-        
-       byte[] byteArray1 = FileToByteArray(path1);
+       String filename = "testbestand.txt";
+       byte[] byteArray1 = FileToByteArray(filename);
 
         ArrayList<String> files = getFileNames();
         System.out.println(files);

@@ -17,14 +17,18 @@ public class Raspberry implements Runnable{
     
   
     
-    public static void main(String []args) {   
+    public static void main(String []args) throws Exception {   
        System.out.println("Trying to setup a Raspberry server");  
        
        Raspberry server = new Raspberry();
        
+//       String filename = "testbestand.txt";
+//       server.getPackethandler().createFileRequestPacket(filename);
+       
     }
     
     private PacketHandlerServer packethandler;
+
     private static boolean alive;
     private int portNumber = 6667;
     private DatagramSocket socket = null;
@@ -33,6 +37,15 @@ public class Raspberry implements Runnable{
     public BlockingQueue<ARQPacket> packetQueueOut;
     private TUI tui;
     
+    
+    public PacketHandlerServer getPackethandler() {
+        return packethandler;
+    }
+
+    public void setPackethandler(PacketHandlerServer packethandler) {
+        this.packethandler = packethandler;
+    }
+
     /**
      * Constructor server.
      */
@@ -69,16 +82,13 @@ public class Raspberry implements Runnable{
         alive = true; 
     }
     
-
-    
-    
-    
+    /**
+     * Getters and setters
+     * @return
+     */
    public BlockingQueue<ARQPacket> getPacketQueueIn() {
         return packetQueueIn;
     }
-
-
-
 
 
     public void setPacketQueueIn(BlockingQueue<ARQPacket> packetQueueIn) {
@@ -86,15 +96,9 @@ public class Raspberry implements Runnable{
     }
 
 
-
-
-
     public BlockingQueue<ARQPacket> getPacketQueueOut() {
         return packetQueueOut;
     }
-
-
-
 
 
     public void setPacketQueueOut(BlockingQueue<ARQPacket> packetQueueOut) {
@@ -173,8 +177,5 @@ public class Raspberry implements Runnable{
         }
     }
         
-  
-    public void ARQpacketToUDP() {
-        
-    }
+
 }
