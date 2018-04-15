@@ -1,6 +1,7 @@
 package client;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 public class Utils {
 
@@ -15,6 +16,22 @@ public class Utils {
         return bb.array();
     }
     
+    public static byte[] intToByteArray(int value, int byteArrayLength) {
+        byte[] bytes = ByteBuffer.allocate(byteArrayLength).putInt(value).array();
+        return bytes;
+    }
+    
+    public static int byteArrayToInt(byte[] b) {
+        return ByteBuffer.wrap(b).getInt();
+    }
+    
+    //Integer is 31 bits.
+    public static byte[] intToThreeBytes(int value) {
+        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+        buffer.clear();
+        buffer.putInt(value);
+        return Arrays.copyOfRange(buffer.array(), 1, 4);
+    }
     
     /**
      * Create a random number for file ID number.

@@ -87,6 +87,17 @@ public class ARQPacket {
         
     }
     
+    /**
+     * ARQ packet 
+     * @param flag
+     * @param filename
+     * @param sequenceNumber
+     * @param ackNumber
+     * @param contentLength
+     * @param option
+     * @param fileContents
+     * @throws Exception
+     */
     public ARQPacket (int flag, int filename, int sequenceNumber, 
             int ackNumber, int contentLength, int option, byte[] fileContents) throws Exception {
         int filePointer = 0;
@@ -164,8 +175,12 @@ public class ARQPacket {
        contentLength = getContentLength(datagram); 
        option = getOptions(datagram);
        
+      // --> hier gaat iets mis.
        //get data content for ARQ packet.
-       System.arraycopy(dataReceivedPacket, HEADERSIZE, data, 0, dataReceivedPacket.length - HEADERSIZE); 
+       
+       data = new byte[dataReceivedPacket.length - header.length];
+       
+       System.arraycopy(dataReceivedPacket, header.length, data, 0, dataReceivedPacket.length - header.length);
        
        //get header from DatagramPacket, Can be done when the fields are set.
        this.header = getHeader();
@@ -318,6 +333,10 @@ public class ARQPacket {
         return flag;
     }
     
+    public byte[] getData() {
+        return data;
+    }
+    
   
     //Setters
     public void setFlags(int flag) {
@@ -348,30 +367,17 @@ public class ARQPacket {
         this.data = data.getBytes();
     }
 
-   
-    
-    //Integer is 31 bits.
-    public static byte[] intToThreeBytes(int value) {
-        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
-        buffer.clear();
-        buffer.putInt(value);
-        return Arrays.copyOfRange(buffer.array(), 1, 4);
+    public void setData(byte[] data) {
+        this.data = data;
     }
     
-    public byte[] intToBytes( final int i ) {
-        ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES); 
-        bb.putInt(i); 
-        return bb.array();
-    }
+  
     
-    public static byte[] intToByteArray(int value, int byteArrayLength) {
-        byte[] bytes = ByteBuffer.allocate(byteArrayLength).putInt(value).array();
-        return bytes;
-    }
+
     
-    public static int byteArrayToInt(byte[] b) {
-        return ByteBuffer.wrap(b).getInt();
-    }
+
+    
+  
     
     
     /**

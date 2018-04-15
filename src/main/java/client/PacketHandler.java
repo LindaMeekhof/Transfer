@@ -1,44 +1,51 @@
 package client;
 
+import java.awt.List;
 import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import com.nedap.university.Raspberry;
 
 import general.FileManager;
 
 public class PacketHandler implements Runnable, Constants {
     
     public HashMap<String, Integer> mapFileNames = new HashMap<String, Integer>();
+    public ArrayList<String> downLoading = new ArrayList<String>();
+    public ArrayList<String> upLoading = new ArrayList<String>();
 
     private Boolean running = true;
-    
-    private BlockingQueue<ARQPacket> packetQueueIn;
-    private BlockingQueue<ARQPacket> packetQueueOut;
-    
+    private Raspberry client;
+    private ClientPi clientPI;
+
    /**
-    * Construcotr PacketHandler
+    * Constructor PacketHandler
     */
-    public PacketHandler() {
-        packetQueueIn = new LinkedBlockingQueue<ARQPacket>();
-        packetQueueOut = new LinkedBlockingQueue<ARQPacket>();
+    public PacketHandler(Raspberry client) {
+        this.client = client;
     }
     
+    public PacketHandler(ClientPi client) {
+        this.clientPI = client;
+    }
+
     /**
      * Getters and setters
      * @return
      */
     public BlockingQueue<ARQPacket> getPacketQueueIn() {
-        return packetQueueIn;
+        return client.packetQueueIn;
     }
 
 
     public void setPacketQueueIn(BlockingQueue<ARQPacket> packetQueueIn) {
-        this.packetQueueIn = packetQueueIn;
+        this.clientPI.packetQueueIn = packetQueueIn;
     }
 
 
@@ -54,9 +61,7 @@ public class PacketHandler implements Runnable, Constants {
             while (hasPackets()) {
                 //Get packet and process on flag 
 
-             
-
-                ARQPacket packet = packetQueueIn.poll();
+                ARQPacket packet = client.packetQueueIn.poll();
 
                 if (packet != null) {
                     int flag = packet.getFlag();
@@ -90,42 +95,17 @@ public class PacketHandler implements Runnable, Constants {
     }
 
     public boolean hasPackets() {
-        return packetQueueIn.isEmpty();
+        return !clientPI.packetQueueIn.isEmpty();
     }
     
-   
-//    /**
-//     * Create a FILE_REQUEST message
-//     * @throws Exception 
-//     */
-//    public DatagramPacket createFileRequestPacket(String filename) throws Exception {
-//       
-//      
-//         //filename
-//        byte[] content = filename.getBytes();
-//        
-//        //flags
-//        int flag = FILE_REQUEST;
-//        int fileID = 0; //leeg pas vullen na eerste pakketje server
-//        int seqNr = Utils.createRandomNumberForFile();
-//        int ackNr = 0; //leeg 
-//        int contentLength = content.length;
-//        int option = 0;
-//             
-//        ARQPacket fileReq = new ARQPacket(flag, fileID, seqNr, ackNr, contentLength, option, content);
-//       
-//        //Datagram maken met ARQ Packet
-//        InetAddress raspberry = InetAddress.getByName("192.168.1.1");
-//        DatagramPacket datagram = createDatagram(fileReq, raspberry, DESTINATIONPORT);
-//        
-//        return datagram;
-//    }
-       
+    
+    
+    // create different kind of packets *******************************************
     /**
      * Create a FILE_REQUEST message
      * @throws Exception 
      */
-    public DatagramPacket createFileRequestPacket(String filename, InetAddress address) throws Exception {
+    public void createFileRequestPacket(String filename, InetAddress address) throws Exception {
        
         ARQPacket arq = new ARQPacket();
  
@@ -138,53 +118,76 @@ public class PacketHandler implements Runnable, Constants {
         //setData
         arq.setData(filename);    
 
+        send(arq);
+      
         //Datagram maken met ARQ Packet
         DatagramPacket datagram = createDatagram(arq, address, DESTINATIONPORT);
-        
-        return datagram;
     }
 
+    // create different kind of packets *******************************************
+    /**
+     * Create a FILE_REQUEST message
+     * @throws Exception 
+     */
+    public void createFileRequestPacket(String filename) throws Exception {
+       
+        ARQPacket arq = new ARQPacket();
+ 
+        //setflags
+        arq.setFlags(FILE_REQUEST);
+        arq.setSequenceNumber(2);  //TODO
+        arq.setACKNumber(1); //TODO
+        arq.setContentLength(filename.getBytes().length);
+        
+        //setData
+        arq.setData(filename);    
+
+      //  send(arq);
+
+    }
     
-//    /**
-//     * Method for handling the fileRequest before sending the data back. 
-//     * @throws Exception 
-//     */
-//    public void processFileRequesting(ARQPacket packet) throws Exception {
-//        
-//        //get name of file
-//        byte[] buffer = packet.getPacket();
-//        String name = new String(buffer, "UTF=8");
-//        System.out.println("Process filerequest" + name);
-//        
-//        //check if the file exist
-//        
-//        //send a Datagram as feedback with amountOfPackets
-//            //amountOfPackets.
-//        byte[] content = getAmountOfPackets(name);
-//        
-//            //flags
-//        int flag = META;
-//        int fileID = Utils.createRandomNumberForFile(); 
-//            //opslaan van de fileID and name
-//        mapFileNames.put(name, fileID);
-//        int seqNr = Utils.createRandomNumberForFile();
-//        int ackNr = 0; //leeg 
-//        int contentLength = content.length;
-//        int option = 0;
-//        
-//        ARQPacket fileReq = new ARQPacket(flag, fileID, seqNr, ackNr, contentLength, option, content);
-//            //Datagram maken met ARQ Packet 
-//        InetAddress raspberry = InetAddress.getByName("192.168.1.2");
-//        DatagramPacket datagram = createDatagram(fileReq, raspberry, DESTINATIONPORT);
-//        
-//        //sending the datagram.
-//    }
-   
+    public void createAcknowledgementMessage(ARQPacket packet) {
+        ARQPacket arq = new ARQPacket();
+        
+        //setflags
+        arq.setFlags(ACK);
+        arq.setSequenceNumber(2);  //TODO
+
+        arq.setACKNumber(packet.getSequenceNumber()); //TODO
+
+        send(arq);
+      
+//        //Datagram maken met ARQ Packet
+//        DatagramPacket datagram = createDatagram(arq, address, DESTINATIONPORT);
+    }
+    
+    /**
+     * ContinueDownloading. Gevolgd op een ACK.
+     * @param data
+     * @param packet
+     */
+    public void continueDownloadingDatagramPacket(byte[] data, ARQPacket packet) {
+        ARQPacket arq = new ARQPacket();
+        
+        //header
+        arq.setFlags(SYN_ACK);
+        arq.setNameFile(packet.getFileName());
+        arq.setSequenceNumber(11);
+        
+        //data
+        arq.setData(data);
+    }
+    
+    public void createFinishMessage() {
+        
+    }
+    
+    // handle/process different kind of packets *******************************************
     /**
      * Create META packet
      * @throws Exception 
      */
-    public void createMETApacket(ARQPacket packet) throws Exception {
+    public void procesFileRequestCreateMETApacket(ARQPacket packet) throws Exception {
         
         //content METApacket
         byte[] buffer = packet.getPacket();
@@ -198,12 +201,23 @@ public class PacketHandler implements Runnable, Constants {
         arq.setSequenceNumber(44); //TODO veranderen in een echt number
         arq.setContentLength(contentLength);
         
+        arq.setData(content);
+        send(arq);
         
         //misschien alleen een ARQpacket en die in de wachtrij zetten om datagram te creeren.
         InetAddress raspberry = InetAddress.getByName("192.168.1.2");
         DatagramPacket datagram = createDatagram(arq, raspberry, DESTINATIONPORT);  
     }
     
+    
+    
+    /**
+     * Sending the ARQ to the queue
+     */
+    public void send(ARQPacket packet) {
+        client.packetQueueOut.offer(packet);
+    }
+ 
    /**
     * Return a byteArray for the amount of packets will be send for sending the file.
     * @param filename
@@ -213,14 +227,10 @@ public class PacketHandler implements Runnable, Constants {
    public byte[] getAmountOfPackets(String filename) throws Exception {
        
        String path = Utils.getPathFromName(filename);
-       
-       byte[] fileContents = FileManager.FileToByteArray(path);
-       
-       int amountPackets = fileContents.length/DATASIZE + 1;
-       
-       return null;
+       byte[] fileContents = FileManager.FileToByteArray(path);       
+       int amountPackets = fileContents.length/DATASIZE + 1;  
+       return Utils.intToBytes(amountPackets);
    }
-   
    
     /**
      *  
@@ -232,7 +242,7 @@ public class PacketHandler implements Runnable, Constants {
         ARQPacket box = null;
         
         try {
-            box = packetQueueIn.poll(timeout, TimeUnit.MILLISECONDS);
+            box = client.packetQueueIn.poll(timeout, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) { 
             System.out.println("Something went wrong with ARQPacket dequeue");
         }
@@ -263,59 +273,13 @@ public class PacketHandler implements Runnable, Constants {
         // TODO Auto-generated method stub
         
     }
-
-    /**
-     * Getting a META data packet and sending MetaData
-     * @throws UnsupportedEncodingException 
-     */
-   
-    public void sendMetaData(ARQPacket packet) throws UnsupportedEncodingException {
-       
-        
-        //setup space for setting the file
-        
-       //getting a download assistant
-        
-       //send an ack for receiving the META packet.
-       
-        
-        
-//        //get name of file
-//        byte[] buffer = packet.getPacket();
-//        String name = new String(buffer, "UTF=8");
-//        
-//        //check if the file exist
-//        
-//        //send a Datagram as feedback with amountOfPackets
-//            //amountOfPackets.
-//        byte[] content = getAmountOfPackets(name);
-//        
-//            //flags
-//        int flag = ACK;
-//        int fileID = Utils.createRandomNumberForFile(); 
-//            //opslaan van de fileID and name
-//        mapFileNames.put(name, fileID);
-//        int seqNr = Utils.createRandomNumberForFile();
-//        int ackNr = 0; //leeg 
-//        int contentLength = content.length;
-//        int option = 0;
-//        
-//        ARQPacket fileReq = new ARQPacket(flag, fileID, seqNr, ackNr, contentLength, option, content);
-//            //Datagram maken met ARQ Packet 
-//        InetAddress raspberry = InetAddress.getByName("192.168.1.2");
-//        DatagramPacket datagram = createDatagram(fileReq, raspberry, DESTINATIONPORT);
-//        
-        //sending the datagram.
-        
-    }
-
    
     public void handleFileDownload(ARQPacket packet) {
         // TODO Auto-generated method stub
         
     }
 
-   
+    
     public void handleFileUpload(ARQPacket packet) {
         // TODO Auto-generated method stub
         

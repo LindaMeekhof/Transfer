@@ -7,6 +7,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 
 
 
@@ -94,18 +95,70 @@ public class FileManager {
             System.out.println("ERROR by setFileContents");
         }
     }
+    
+   
+    private static String fileMap = "files";
+    
+    /**
+     * Getting the a list with all the files listed in a specific folder.
+     */
+    public static ArrayList<String> getFileNames() {
+        ArrayList<String> fileList = new ArrayList<String>();
+        
+        String workingDirectory = System.getProperty("user.dir");
+        String path = workingDirectory + File.separator + fileMap;
+        File folder = new File(path);
+ 
+        File[] theFiles = folder.listFiles();
+        for (int i = 0; i < theFiles.length; i++) {
+            fileList.add(theFiles[i].getName());
+        }
+        return fileList;
+    }
+    
+    /**
+     * Getting the a list with all the files listed in a specific folder.
+     */
+    public static String getFileNamesToString() {
+        String fileList = null;
+        
+        String workingDirectory = System.getProperty("user.dir");
+        String path = workingDirectory + File.separator + fileMap;
+        File folder = new File(path);
+ 
+        File[] theFiles = folder.listFiles();
+        for (int i = 0; i < theFiles.length; i++) {
+            fileList = fileList + " " + theFiles[i].getName(); 
+        }
+        return fileList;
+    }
+    
 
-    
-    
     
     public static void main(String[] arg) throws Exception {
         String workingDirectory = System.getProperty("user.dir");
        String path = workingDirectory + "/" + "DSC_0042.jpg";
         
+       
         byte[] byteArray =  FileToByteArray(path);
         
-      //  System.out.println(byteArray);
         
+        String fileMap = "files";
+        String workingDirectory1 = System.getProperty("user.dir");
+       String path1 = workingDirectory1 +  File.separator + fileMap + File.separator + "testbestand.txt";
+        
+       byte[] byteArray1 = FileToByteArray(path1);
+
+        ArrayList<String> files = getFileNames();
+        System.out.println(files);
+        
+        String listString = "";
+        for (String s : files)
+        {
+            listString += s + "\t";
+        }
+
+        System.out.println(listString);
     }
     
     
