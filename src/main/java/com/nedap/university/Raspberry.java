@@ -4,47 +4,47 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import client.ARQPacket;
+import client.Constants;
 import client.PacketHandler;
 import client.PacketHandlerServer;
 import client.TUI;
 
 
-public class Raspberry implements Runnable{
+public class Raspberry implements Runnable, Constants {
     
-  
-    
+
     public static void main(String []args) throws Exception {   
        System.out.println("Trying to setup a Raspberry server");  
        
        Raspberry server = new Raspberry();
        
-//       String filename = "testbestand.txt";
-//       server.getPackethandler().createFileRequestPacket(filename);
+       String filename = "testbestand.txt";
+       server.getPackethandler().createFileRequestPacket(filename);
        
     }
     
+    private DatagramSocket socket = null; 
     private PacketHandlerServer packethandler;
-
-    private static boolean alive;
-    private int portNumber = 6667;
-    private DatagramSocket socket = null;
-    private byte[] received = new byte[256];
+    
     public BlockingQueue<ARQPacket> packetQueueIn;
-    public BlockingQueue<ARQPacket> packetQueueOut;
-    private TUI tui;
+    public BlockingQueue<ARQPacket> packetQueueOut;  
+   
+    public ArrayList<String> downLoading = new ArrayList<String>();
+    public ArrayList<String> upLoading = new ArrayList<String>();
     
-    
-    public PacketHandlerServer getPackethandler() {
-        return packethandler;
-    }
+    private boolean alive;
+    private int portNumber = 6667;
+   
+    private byte[] received = new byte[256];
 
-    public void setPackethandler(PacketHandlerServer packethandler) {
-        this.packethandler = packethandler;
-    }
+    private TUI tui;
+ 
 
     /**
      * Constructor server.
@@ -54,7 +54,6 @@ public class Raspberry implements Runnable{
         packetQueueIn = new LinkedBlockingQueue<ARQPacket>();
         packetQueueOut = new LinkedBlockingQueue<ARQPacket>();
         
-        packethandler = new PacketHandlerServer(this);
         /** 
          * Try to setup a ServerSocket for the RaspberryPi.
          */
@@ -62,8 +61,9 @@ public class Raspberry implements Runnable{
             System.out.println("try to start");
             socket = new DatagramSocket(portNumber);
             System.out.println("The socketserver binding is succesfully established");
-           
-            //Start thread for handling packets 
+                     
+            //Start thread for handling packets
+            packethandler = new PacketHandlerServer(this);
             Thread serverPacketHandler = new Thread(packethandler);
             serverPacketHandler.start();
             
@@ -73,6 +73,7 @@ public class Raspberry implements Runnable{
             
             System.out.println("The packetHandler is started");
             
+          
            
         } catch (IOException e) {
             System.out.println("ERROR setting up the serversocket has failed");
@@ -80,6 +81,9 @@ public class Raspberry implements Runnable{
         }
  
         alive = true; 
+        while (alive) {
+            sendingPackets();
+        }
     }
     
     /**
@@ -106,6 +110,13 @@ public class Raspberry implements Runnable{
     }
 
 
+    public PacketHandlerServer getPackethandler() {
+        return packethandler;
+    }
+
+    public void setPackethandler(PacketHandlerServer packethandler) {
+        this.packethandler = packethandler;
+    }
 
 
 
@@ -114,12 +125,30 @@ public class Raspberry implements Runnable{
      * Sending a packet.
      * @param sendPacket
      */
-    public void sendingPackets(DatagramPacket sendPacket) {
+    public void sendingPackets() {
         if(socket != null) {
             try {
-                socket.send(sendPacket);
+             //   System.out.println("running sending packets");
+                if (!packetQueueOut.isEmpty()) { 
+                    System.out.println("the queue is not empty");
+                    ARQPacket packetToSend =  packetQueueOut.poll();
+                   // --> hier gebleven //TODO
+                   int port = packetToSend.getDestinationPort();
+                    InetAddress IPAddress =  packetToSend.getAddress(); 
+                    
+                    byte[] dataToSend = packetToSend.getPacket();
+                    DatagramPacket sendPacket = new DatagramPacket(dataToSend, dataToSend.length, IPAddress, port);
+                    socket.send(sendPacket);
+                    } 
             } catch (IOException e) {
                 System.out.println("ERROR sending a packet has failed");
+                e.printStackTrace();
+            }
+            
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                System.out.println("Interupted while sleeping");
                 e.printStackTrace();
             }
         }
@@ -130,7 +159,7 @@ public class Raspberry implements Runnable{
 
     @Override
     public void run() {
-        System.out.println("handling packets server started" );
+        System.out.println("handling packets server started, receiving packets" );
         while (alive) {
             try {
                 DatagramPacket receivedPacket = new DatagramPacket(received, received.length);
@@ -139,7 +168,7 @@ public class Raspberry implements Runnable{
                 //UDP
                 String sentence = new String(receivedPacket.getData());
                 System.out.println("RECEIVED: " + sentence);
-                InetAddress IPAddress = receivedPacket.getAddress();
+               InetAddress IPAddress = receivedPacket.getAddress();
                 System.out.println("RECEIVED: address " + IPAddress);
                 int port = receivedPacket.getPort();
                 System.out.println("RECEIVED: port source " + port);
@@ -147,21 +176,24 @@ public class Raspberry implements Runnable{
                 byte[] dataReceivedPacket = receivedPacket.getData();
                 System.out.println("RECEIVED: length " + dataReceivedPacket.length);
                 
-                ARQPacket arq = new ARQPacket(receivedPacket);
+                //-> hier gebleven
+                ARQPacket arq = new ARQPacket(receivedPacket, IPAddress, port);
                 int flag = arq.getFlag();
               //  System.out.println("RECEIVED flag: " + flag);
                 
                 packethandler.getPacketQueueIn().put(arq);
-                
-                //Sending packets 
-                if (!packetQueueOut.isEmpty()) { 
-                ARQPacket packetToSend =  packetQueueOut.poll();
-                
-                byte[] dataToSend = packetToSend.getPacket();
-                DatagramPacket sendPacket = new DatagramPacket(dataToSend, dataToSend.length, IPAddress, port);
-                socket.send(sendPacket);
-                }
-                
+   
+//                //Sending packets 
+//                if (!packetQueueOut.isEmpty()) { 
+//                System.out.println("the queue is not empty");
+//                ARQPacket packetToSend =  packetQueueOut.poll();
+//                
+//                byte[] dataToSend = packetToSend.getPacket();
+//                DatagramPacket sendPacket = new DatagramPacket(dataToSend, dataToSend.length, IPAddress, port);
+//                socket.send(sendPacket);
+//                }
+               
+                System.out.println("gaat dit rond");
             } catch (IOException e) {
                System.out.println("ERROR something went wrong with the receiving of DatagramPacket");
             } catch (InterruptedException e) {

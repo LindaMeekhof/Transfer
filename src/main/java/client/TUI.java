@@ -1,12 +1,8 @@
 package client;
 
-import java.net.DatagramPacket;
+
 import java.util.ArrayList;
-import java.util.Observable;
-import java.util.Observer;
 import java.util.Scanner;
-
-
 
 public class TUI implements Runnable {
     
@@ -28,8 +24,6 @@ public class TUI implements Runnable {
      */
     public void readInput() throws Exception {
         
-       printMenu();
-       
        String str = in.next();
        
        String[] message = str.split("_");
@@ -42,44 +36,36 @@ public class TUI implements Runnable {
            
            //tijdelijk al aanwezig //TODO
            client.getListOfAvailableFiles().add(filename);
-           if(isAvailableFile(filename)) {
-               client.getPacketHandler().createFileRequestPacket(filename);
-            
+           if (isAvailableFile(filename)) {
+               System.out.println("This file is available");
+               client.getPacketHandler().createFileRequestPacket(filename);          
            } else {
                System.out.println("This file is not available");
+           }  
+       } else if (message[0].equalsIgnoreCase("UPLOAD") && message.length == 2) {         
+           if (isAvailableFile(message[1])) {
+                client.getPacketHandler().createUploadRequest(message[2]);
            }
-    
-       } else if (message[0].equalsIgnoreCase("UPLOAD")) {
-           
-           
-           //Send upload message    
        } else if (message[0].equalsIgnoreCase("PAUSE")) {
-           //Send pause message 
- 
            if (isDownloading(message[1])) {
-               //send a pause message
+              int fileID = 0; //TODO
+              client.getPacketHandler().createPauseRequest(fileID); 
            } else {
                System.out.println("This is not a file that is currently dowloaded, can't pause");
-               printMenu();
-           }
-           
-       } else if (message[0].equalsIgnoreCase("RESUME")) {
-           //Send resume message   
+           } 
+       } else if (message[0].equalsIgnoreCase("RESUME") && message.length == 2) {
            if (isDownloading(message[1])) {
-               //send a pause message
+               client.getPacketHandler().createResume(message[1]);
            } else {
                System.out.println("This is not a file that is paused, can't resume");
            }
            
        } else if (message[0].equalsIgnoreCase("FILELIST")) {
-           //Send file list message
+            client.getPacketHandler().createFileListRequest();
+            System.out.println("filelist request send");
        } else {
            print("This is an unknown command");
        }
-
-       
-       
-       
     }
     
     
@@ -93,8 +79,8 @@ public class TUI implements Runnable {
     /**
      * Check if you are currently downloading a specific file
      */
-    public static boolean isDownloading(String filename) {
-        return listCurrentDownloads.contains(filename);
+    public boolean isDownloading(String filename) {
+        return client.getDownLoading().contains(filename);
     }
     
     /**

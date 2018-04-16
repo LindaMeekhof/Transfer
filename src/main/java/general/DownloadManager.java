@@ -1,8 +1,6 @@
 package general;
 
-import java.net.DatagramPacket;
-import java.net.InetAddress;
-import java.util.HashMap;
+
 import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -103,24 +101,22 @@ public class DownloadManager implements Constants {
      */
     public void procesFileRequestCreateMETApacket(ARQPacket packet) throws Exception {
         
-        
         //content METApacket
         byte[] buffer = packet.getData();
         String name = new String(buffer, "UTF-8");
         
-
         byte[] content = getAmountOfPackets(name);
         int contentLength = content.length;
         
-        ARQPacket arq = new ARQPacket();
-        arq.setFlags(META);
-        arq.setNameFile(fileID); 
-        System.out.println(startingSequenceNumber);
-        arq.setSequenceNumber(startingSequenceNumber); 
-        arq.setACKNumber(packet.getSequenceNumber());
-        arq.setContentLength(content.length);
+        int sequenceNumber =  startingSequenceNumber;
         
-        arq.setData(content);
+        int amountOfPackets = 11;
+        
+        ARQPacket arq = new ARQPacket(META, fileID, sequenceNumber, 
+                packet.getSequenceNumber(), contentLength, amountPackets, buffer);
+
+        arq.setAddress(packet.getAddress());
+        arq.setDestinationPort(packet.getDestinationPort());
         
         System.out.println("process filerequest and send meta packet");
         //in de wachtrij gezet om te versturen

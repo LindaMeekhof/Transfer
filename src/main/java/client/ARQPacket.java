@@ -34,17 +34,15 @@ public class ARQPacket {
     //header info
     private int flag; 
     private int fileID;
-
-
-
-
-
+   
     private int sequenceNumber;
     private int ackNumber;
     private int contentLength;  
     private int option;
-   
-    
+
+    //UDP address
+    private InetAddress address;
+    private int destinationPort;
 
     //byte array Header
     private byte[] header = new byte[HEADERSIZE];
@@ -54,15 +52,17 @@ public class ARQPacket {
     
     private byte[] packet = new byte[0];
     
-    public void setPacket(byte[] packet) {
-        this.packet = packet;
-    }
 
     /**
      * ARQPAcket constructor
      */
     public ARQPacket () {
 
+    }
+    
+    public ARQPacket (InetAddress destination, int port) {
+          address = destination;
+          destinationPort = port;
     }
     
     /**
@@ -109,7 +109,7 @@ public class ARQPacket {
      */
     public ARQPacket (int flag, int filename, int sequenceNumber, 
             int ackNumber, int contentLength, int option, byte[] fileContents) throws Exception {
-        int filePointer = 0;
+        //setting header
         this.flag = flag;
         this.fileID = filename;
         this.sequenceNumber = sequenceNumber;
@@ -119,12 +119,18 @@ public class ARQPacket {
         
         header = getHeader();
         
-        //create data part of the ARQ Packet        
-        System.arraycopy(fileContents, filePointer, data, 0, fileContents.length);
-          
-        //byte array header and data.
-        System.arraycopy(header, 0, packet, 0, HEADERSIZE);  
-        System.arraycopy(fileContents, 0, packet, HEADERSIZE, fileContents.length);
+        data = new byte[fileContents.length];
+        data = fileContents;
+        
+        
+        byte[] buffer = new byte[HEADERSIZE + fileContents.length];
+        //First enter the header content
+        System.arraycopy(header, 0, buffer, 0, HEADERSIZE);
+     
+        //Secondly enter the data content in packet
+        System.arraycopy(data, 0, buffer, header.length, data.length);
+        
+        setPacket(buffer);
     }
     
     
@@ -168,14 +174,12 @@ public class ARQPacket {
      * Making an ARQ packet when receiving a Datagram. Datagram "uitpakken".
      * @param datagram
      */
-    public ARQPacket(DatagramPacket datagram) {
+    public ARQPacket(DatagramPacket datagram, InetAddress destination, int port) {
        
         //header and content
        byte[] dataReceivedPacket = datagram.getData();
        this.packet = dataReceivedPacket;
        
-      
-        
        //get all the fields of header
        flag = getFlags(datagram);
        fileID = getFileName(datagram);
@@ -193,6 +197,10 @@ public class ARQPacket {
        
        //get header from DatagramPacket, Can be done when the fields are set.
        this.header = getHeader();
+       
+       address = destination;
+       destinationPort = port;
+       
     } 
     
     /**
@@ -297,11 +305,12 @@ public class ARQPacket {
         return ackNr;
     }
     
+    
+    
     public int getACKNumber() {
        return ackNumber;
     }
-    
-    
+     
     /**
      * Get the ContentLength of the DatagramPacket.
      * @return
@@ -347,6 +356,33 @@ public class ARQPacket {
     }
     
   
+    public InetAddress getAddress() {
+        return address;
+    }
+
+    public void setPacket(byte[] packet) {
+        this.packet = packet;
+    }
+    
+
+    public void setAddress(InetAddress address) {
+        this.address = address;
+    }
+
+
+
+    public int getDestinationPort() {
+        return destinationPort;
+    }
+
+
+
+    public void setDestinationPort(int destinationPort) {
+        this.destinationPort = destinationPort;
+    }
+
+
+
     //Setters
     public void setFlags(int flag) {
         this.flag = flag;
@@ -425,19 +461,16 @@ public class ARQPacket {
     /**
      * Main to test.
      * @param args
+     * @throws Exception 
      */
-    public static void main(String[] args) {
-        ARQPacket packet = new ARQPacket();
-        packet.setFlags(12);
+    public static void main(String[] args) throws Exception {
         
+        String sentence = "ackackakc";
+        byte[] sendData = sentence.getBytes();
         
-        int flaggg = packet.getFlag();
-        System.out.println("flag" + flaggg);
-        
-        byte[] head = packet.getHeader();
-    //    packet.setFlags(SYN);
- 
-        
+        ARQPacket packet = new ARQPacket(11, 12, 13, 14, 15, 16, sendData);
+       
+        System.out.println(new String(packet.getPacket()));
         System.out.println("test");
     }
     

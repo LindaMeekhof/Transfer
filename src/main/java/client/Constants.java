@@ -17,7 +17,10 @@ public interface Constants {
     public static final int FIN = 4;         //finished with the file
     public static final int FILE_REQUEST = 8; //fileRequest 
     public static final int META = 10;
-    
+    public static final int PAUSE = 12;
+    public static final int RESUME = 16;
+    public static final int UPLOAD = 18;
+    public static final int FILELIST= 20;
  
     
     public static final int DESTINATIONPORT = 6667;

@@ -124,7 +124,7 @@ public class PacketHandlerServer implements Runnable, Constants {
                         
                         break;
                     case META :
-                        System.out.println("Ready with sending this file");
+                        System.out.println("Ready with sending META file");
                         System.out.println("RECEIVED META ");
                         System.out.println("FLAG " + packet.getFlag());
                         System.out.println("FILE_ID " + packet.getFileName());
@@ -134,6 +134,17 @@ public class PacketHandlerServer implements Runnable, Constants {
                         System.out.println("OPTION " + packet.getOptions());
                         System.out.println("GET DATA" + packet.getData());
                         System.out.println("");
+                        
+                        //get the downloadManager
+                        DownloadManager current = idToDownloadManager.get(packet.getFileID());
+                        try {
+                            current.procesFileRequestCreateMETApacket(packet);
+                        } catch (Exception e1) {
+                            // TODO Auto-generated catch block
+                            e1.printStackTrace();
+                        }
+                      
+                    
                         break;
                     case FILE_REQUEST :
                         System.out.println("RECEIVED FILEREQUEST ");
@@ -149,12 +160,13 @@ public class PacketHandlerServer implements Runnable, Constants {
                         System.out.println("GET DATA " + filename);
                         
                         ArrayList filenames = FileManager.getFileNames();
-                        System.out.println(filenames);
+                        
+                        
                         if (filenames.contains(filename.trim())) {
                             System.out.println("The file exists" + filename);
-                            
+
                             DownloadManager downloadManager = new DownloadManager(filename, this);
-                            
+
                             try {
                                 System.out.println(filename);
                                 downloadManager.procesFileRequestCreateMETApacket(packet);
@@ -162,23 +174,24 @@ public class PacketHandlerServer implements Runnable, Constants {
                                 System.out.println("META data failure");
                                 e.printStackTrace();
                             }
-                            
-                            
                         } else {
                             System.out.println("The file not exists" +  filename);
 
                             DownloadManager downloadManager = new DownloadManager(filename, this);
-                            
+
                             try {
-                               
                                 downloadManager.procesFileRequestCreateMETApacket(packet);
                             } catch (Exception e) {
                                 System.out.println("META data failure");
                                 e.printStackTrace();
-                            }
-                            
+                            } 
+                        }                      
+                        try {
+                            createAcknowledgementMessage(packet);
+                        } catch (Exception e) {
+                            // TODO Auto-generated catch block
+                            e.printStackTrace();
                         }
-
                         break;
                     default :
                         System.out.println("Invalid flag, drop the package");
@@ -216,75 +229,58 @@ public class PacketHandlerServer implements Runnable, Constants {
         return !client.packetQueueIn.isEmpty();
     }
     
-    public void createFileRequestPacket(String filename, InetAddress address) throws Exception {
-       
-        ARQPacket arq = new ARQPacket();
- 
-        //setflags
-        arq.setFlags(FILE_REQUEST);
-        arq.setSequenceNumber(2);  //TODO
-        arq.setACKNumber(1); //TODO
-        arq.setContentLength(filename.getBytes().length);
-        
-        //setData
-        arq.setData(filename);    
 
-        send(arq);
-      
-        //Datagram maken met ARQ Packet
-        DatagramPacket datagram = createDatagram(arq, address, DESTINATIONPORT);
-    }
 
     // create different kind of packets *******************************************
-    /**
-     * Create a FILE_REQUEST message de goede 
-     * @throws Exception 
-     */
-    public void createFileRequestPacket(String filename) throws Exception {
-       
-        ARQPacket arq = new ARQPacket();
- 
-        //setflags
-        arq.setFlags(FILE_REQUEST);
-        arq.setSequenceNumber(2);  //TODO
-        arq.setACKNumber(1); //TODO
-        arq.setContentLength(filename.getBytes().length);
+     /**
+      * Create a FILE_REQUEST message de goede 
+      * @throws Exception 
+      */
+     public void createFileRequestPacket(String filename) throws Exception {
         
-        //setData
-        byte[] data = filename.getBytes();
-        arq.setData(data);    
-        
-        //bytebuffer for packet (header + data)
-        int fileNameSize = filename.getBytes().length;
-        byte[] packet = new byte[HEADERSIZE + fileNameSize];
-        
-        byte[] header = arq.getHeader();
-        //First enter the header content
-        System.arraycopy(header, 0, packet, 0, HEADERSIZE);
-        
-        //Secondly enter the data content
-        System.arraycopy(data, 0, packet, header.length, data.length);
-        arq.setPacket(packet);
-        
-        send(arq);
-        System.out.println(packet);
+         ARQPacket arq = new ARQPacket();
+  
+         //setflags
+         arq.setFlags(FILE_REQUEST);
+         arq.setSequenceNumber(2);  //TODO
+         arq.setACKNumber(1); //TODO
+         arq.setContentLength(filename.getBytes().length);
+         
+         //setDatas
+         byte[] data = filename.getBytes();
+         arq.setData(data);    
+         
+         //bytebuffer for packet (header + data)
+         int fileNameSize = filename.getBytes().length;
+         byte[] packet = new byte[HEADERSIZE + fileNameSize];
+         
+         byte[] header = arq.getHeader();
+         //First enter the header content
+         System.arraycopy(header, 0, packet, 0, HEADERSIZE);
+         
+         //Secondly enter the data content
+         System.arraycopy(data, 0, packet, header.length, data.length);
+         arq.setPacket(packet);
+         
+         send(arq);
+         System.out.println("sending filerequest packet");
 
-    }
+     }
     
     /**
      * create an Acknowledgement packet. Only header.
      * @param packet
+     * @throws Exception 
      */
-    public void createAcknowledgementMessage(ARQPacket packet) {
-        ARQPacket arq = new ARQPacket();
+    public void createAcknowledgementMessage(ARQPacket packet) throws Exception {
         
-        //setflags
-        arq.setFlags(ACK);
-        arq.setFileID(packet.getFileID());
-        arq.setACKNumber(packet.getSequenceNumber() + 1);  
-        arq.setContentLength(EMPTY); //only header
-        
+        int ackNumber = packet.getSequenceNumber() + 1;
+        int fileID = packet.getFileID();
+        ARQPacket arq = new ARQPacket(ACK, fileID, EMPTY, 
+                ackNumber, EMPTY, EMPTY);
+ 
         send(arq);
+        System.out.println(arq);
     }
     
     /**
@@ -304,60 +300,89 @@ public class PacketHandlerServer implements Runnable, Constants {
         arq.setData(data);
     }
     
-    public void createFinishMessage() {
-        
+    /**
+     * Create finish message.
+     * @param packet
+     * @throws Exception
+     */
+    public void createFinishMessage(ARQPacket packet) throws Exception {
+        ARQPacket arq = new ARQPacket(FIN, packet.getFileID(),
+                EMPTY, EMPTY, EMPTY, EMPTY);
+        send(arq);
     }
     
-    // handle/process different kind of packets *******************************************
-//    /**
-//     * Create META packet
-//     * @throws Exception 
-//     */
-//    public void procesFileRequestCreateMETApacket(ARQPacket packet) throws Exception {
-//        
-//        //content METApacket
-//        byte[] buffer = packet.getPacket();
-//        String name = new String(buffer, "UTF=8");
-//        byte[] content = getAmountOfPackets(name);
-//        int contentLength = content.length;
-//        
-//        ARQPacket arq = new ARQPacket();
-//        arq.setFlags(META);
-//        arq.setNameFile(33); //TODO veranderen in een echt number
-//        arq.setSequenceNumber(44); //TODO veranderen in een echt number
-//        arq.setContentLength(contentLength);
-//        
-//        arq.setData(content);
-//        send(arq);
-//        
-//        //misschien alleen een ARQpacket en die in de wachtrij zetten om datagram te creeren.
-//        InetAddress raspberry = InetAddress.getByName("192.168.1.2");
-//        DatagramPacket datagram = createDatagram(arq, raspberry, DESTINATIONPORT);  
-//    }
+    /**
+     * Create pause request
+     * @throws Exception 
+     */
+    public void createPauseRequest(int fileID) throws Exception {
+        ARQPacket arq = new ARQPacket(PAUSE, fileID,
+                EMPTY, EMPTY, EMPTY, EMPTY);
+        send(arq);
+    }
     
+    public ArrayList<String> getDownLoading() {
+        return downLoading;
+    }
+
+
+    public void setDownLoading(ArrayList<String> downLoading) {
+        this.downLoading = downLoading;
+    }
+
+
+    public ArrayList<String> getUpLoading() {
+        return upLoading;
+    }
+
+
+    public void setUpLoading(ArrayList<String> upLoading) {
+        this.upLoading = upLoading;
+    }
+
+
+    /**
+     * Create pause request
+     * @throws Exception 
+     */
+    public void createResume(String filename) throws Exception {
+        int fileID = 12; //TODO
+        ARQPacket arq = new ARQPacket(RESUME, fileID,
+                EMPTY, EMPTY, EMPTY, EMPTY);
+        send(arq);
+    }
     
+    /**
+     * Create pause request
+     * @throws Exception 
+     */
+    public void createUploadRequest(String filename) throws Exception {
+        int fileID = 12; //TODO
+        ARQPacket arq = new ARQPacket(UPLOAD, fileID,
+                EMPTY, EMPTY, EMPTY, EMPTY);
+        send(arq);
+    }
+ 
+    /**
+     * Create pause request
+     * @throws Exception 
+     */
+    public void createFileListRequest() throws Exception {
+        int fileID = 12; //TODO
+        ARQPacket arq = new ARQPacket(FILELIST, fileID,
+                EMPTY, EMPTY, EMPTY, EMPTY);
+        send(arq);
+    }
     
     /**
      * Sending the ARQ to the queue
      */
     public void send(ARQPacket packet) {
         client.packetQueueOut.offer(packet);
+       
     }
  
-   /**
-    * Return a byteArray for the amount of packets will be send for sending the file.
-    * @param filename
-    * @return
- * @throws Exception 
-    */
-//   public byte[] getAmountOfPackets(String filename) throws Exception {
-//       
-//       String path = Utils.getPathFromName(filename);
-//       byte[] fileContents = FileManager.FileToByteArray(path);       
-//       int amountPackets = fileContents.length/DATASIZE + 1;  
-//       return Utils.intToBytes(amountPackets);
-//   }
-//   
+
     /**
      *  
      * @param timeout
@@ -395,11 +420,7 @@ public class PacketHandlerServer implements Runnable, Constants {
 
 
    
-    public void sendData(DatagramPacket data) {
-        // TODO Auto-generated method stub
-        
-    }
-   
+
     public void handleFileDownload(ARQPacket packet) {
         // TODO Auto-generated method stub
         
