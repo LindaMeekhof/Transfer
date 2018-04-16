@@ -31,12 +31,11 @@ public class FileManager {
         System.out.println(new File(".").getAbsoluteFile() + "absolute");
         
         String path = workingDirectory + File.separator + fileMap + File.separator + filename; 
-       // System.out.println(filename);
-       // System.out.println(path);
+    
         
         File fileToTransmit = new File(path.trim());
    
-        
+      
         //read all the data from the file 
         try (FileInputStream fileStream = new FileInputStream(fileToTransmit)) {
         

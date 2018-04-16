@@ -14,7 +14,7 @@ public class Main {
 
         initShutdownHook();
         
-        Raspberry pi = new Raspberry();
+
         
         while (keepAlive) {
             try {

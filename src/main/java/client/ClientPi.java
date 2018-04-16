@@ -1,18 +1,17 @@
 package client;
 
-import java.io.File;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Observable;
-import java.util.Observer;
+import java.util.HashMap;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import general.DownloadManager;
+
 
 public class ClientPi implements Runnable, Constants {
 
@@ -33,8 +32,6 @@ public class ClientPi implements Runnable, Constants {
         /** 
          * IP address from the client. 
          */
-        
-
         try {
             address = InetAddress.getByName("localhost");
         } catch (UnknownHostException e1) {
@@ -42,28 +39,13 @@ public class ClientPi implements Runnable, Constants {
             e1.printStackTrace();
         }
         
-        // TestPacket ************************************************************************************ 
+ 
         ClientPi client = new ClientPi();
-        
-//        String content = "ackack";
-//        ARQPacket arq = new ARQPacket();
-//        arq.setSequenceNumber(11);
-//        client.getPacketHandler().createAcknowledgementMessage(arq);
 
-//        boolean alive = true;
-//        while (alive) {
-//            client.sendPacketsQueue();
-//   
-//            Thread.sleep(2000);
-//        }
-//        
-//        System.out.println("end main");
-        
     }
     
  // Fields  *************************************************
-    private static InetAddress address = null;
-    
+    private static InetAddress address = null;    
     private DatagramSocket clientSocket = null;
     private PacketHandler packethandler;
     
@@ -77,11 +59,16 @@ public class ClientPi implements Runnable, Constants {
     
     private TUI tui;
    
-    private static int destinationPort = 6667;
+    private static int portNumber = 666;
     private byte[] received = new byte[1000];
     private static final int TIMEOUT = 1000;
     private ArrayList<String> ListOfAvailableFiles = new ArrayList<String>();
   
+    public HashMap<String, Integer> mapFileNames = new HashMap<String, Integer>();
+
+    public HashMap<Integer, DownloadManager> idToDownloadManager = new HashMap<Integer, DownloadManager>();
+
+    
     // Constructor **********************************
 
     /**
@@ -92,18 +79,28 @@ public class ClientPi implements Runnable, Constants {
         packetQueueIn = new LinkedBlockingQueue<ARQPacket>();
         packetQueueOut = new LinkedBlockingQueue<ARQPacket>();
         
-
+        if (portNumber == 6667) {
         tui = new TUI(this);
         Thread clientTUI = new Thread(tui);
         clientTUI.start();
-     
+        }
         //setup socket connection
       
         try {
-       
+            
+            if (portNumber == 6667) {
+
             clientSocket = new DatagramSocket();
-            System.out.println("The clientSocket binding is succesfully established");
-       
+
+            System.out.println("starting as client"); 
+            } else {
+         
+            clientSocket = new DatagramSocket(6667);
+            System.out.println("starting as server");   
+
+            }
+            
+            
              //Start thread for handling packets 
             packethandler = new PacketHandler(this);
             Thread clientPacketHandler = new Thread(packethandler);
@@ -113,11 +110,12 @@ public class ClientPi implements Runnable, Constants {
             Thread receivePacketHandler = new Thread(this);
             receivePacketHandler.start();
             
-            System.out.println("The packetHandler client is started");
-        
+            System.out.println("The packetHandler is started");
+            
         } catch (IOException e) {
             System.out.println("ERROR The clientSocket binding is not succesfull");
             e.printStackTrace();
+            
         }  
   
         alive = true; 
@@ -133,24 +131,42 @@ public class ClientPi implements Runnable, Constants {
      */
     public void sendingPackets() {
         if(clientSocket != null) {
+         //   System.out.println("running");
             try {
-               // System.out.println("running sending packets client");
-                if (!packetQueueOut.isEmpty()) { 
-                    System.out.println("the queue is not empty");
+                
+                if (portNumber == 6667) { //client
+                    if (!packetQueueOut.isEmpty()) { 
+                        System.out.println("the queue is not empty");
+                        
+                        ARQPacket packetToSend =  packetQueueOut.poll();
                     
-                    ARQPacket packetToSend =  packetQueueOut.poll();
-                   // --> hier gebleven //TODO
+                         
+                        byte[] dataToSend = packetToSend.getPacket();
+                        
+                        System.out.println("address" + address);
+                        DatagramPacket sendPacket = new DatagramPacket(dataToSend, dataToSend.length, address, portNumber);
+                        clientSocket.send(sendPacket);
+                        System.out.println("send as client");
+                        } 
+                } else { //server
+                    if (!packetQueueOut.isEmpty()) { 
+                        System.out.println("the queue is not empty");
+                        
+                        ARQPacket packetToSend =  packetQueueOut.poll();
                      
-                    byte[] dataToSend = packetToSend.getPacket();
-                    
-                    DatagramPacket sendPacket = new DatagramPacket(dataToSend, dataToSend.length, address, destinationPort);
-                    clientSocket.send(sendPacket);
-                    } 
+                       int port = packetToSend.getDestinationPort();
+                        InetAddress IPAddress =  packetToSend.getAddress(); 
+                        
+                        byte[] dataToSend = packetToSend.getPacket();
+                        DatagramPacket sendPacket = new DatagramPacket(dataToSend, dataToSend.length, IPAddress, port);
+                        clientSocket.send(sendPacket);
+                        } 
+                }
             } catch (IOException e) {
                 System.out.println("ERROR sending a packet has failed");
                 e.printStackTrace();
             }
-            
+
             try {
                 Thread.sleep(2000);
             } catch (InterruptedException e) {
@@ -159,34 +175,55 @@ public class ClientPi implements Runnable, Constants {
             }
         }
     }
-    
+
     
 
 
     @Override
     public void run() {
         while(alive) {
-            System.out.println("client receive running");
+          //  System.out.println("client receive running");
             try {
-                DatagramPacket receivedPacket = new DatagramPacket(received, received.length);
-                clientSocket.receive(receivedPacket);
+                if (portNumber == 6667) {
+                    DatagramPacket receivedPacket = new DatagramPacket(received, received.length);
+                    clientSocket.receive(receivedPacket);
 
-                //UDP
-                String sentence = new String(receivedPacket.getData());
-                System.out.println("RECEIVED: " + sentence);
-                InetAddress IPAddress = receivedPacket.getAddress();
-                System.out.println("RECEIVED: address " + IPAddress);
-                int port = receivedPacket.getPort();
-                System.out.println("RECEIVED: port source " + port);
+                    //UDP
+                    String sentence = new String(receivedPacket.getData());
+                    System.out.println("RECEIVED: data " + sentence);
+                    InetAddress IPAddress = receivedPacket.getAddress();
+                    System.out.println("RECEIVED: address " + IPAddress);
+                    int port = receivedPacket.getPort();
+                    System.out.println("RECEIVED: port source " + port);
 
-                byte[] dataReceivedPacket = receivedPacket.getData();
-                System.out.println("RECEIVED: length " + dataReceivedPacket.length);
+                    byte[] dataReceivedPacket = receivedPacket.getData();
+                    System.out.println("RECEIVED: length " + dataReceivedPacket.length);
 
-                
-                //-> hier gebleven
-                ARQPacket arq = new ARQPacket(receivedPacket, IPAddress, destinationPort);
+                    ARQPacket arq = new ARQPacket(receivedPacket, IPAddress, port);
 
-                packethandler.getPacketQueueIn().put(arq);
+                    packetQueueIn.put(arq);
+
+                } else {
+                    DatagramPacket receivedPacket = new DatagramPacket(received, received.length);
+                    clientSocket.receive(receivedPacket);
+
+                    //UDP
+                    String sentence = new String(receivedPacket.getData());
+                    System.out.println("RECEIVED: data " + sentence);
+                    InetAddress IPAddress = receivedPacket.getAddress();
+                    System.out.println("RECEIVED: address " + IPAddress);
+                    int port = receivedPacket.getPort();
+                    System.out.println("RECEIVED: port source " + port);
+
+                    byte[] dataReceivedPacket = receivedPacket.getData();
+                    System.out.println("RECEIVED: length " + dataReceivedPacket.length);
+
+                    ARQPacket arq = new ARQPacket(receivedPacket, IPAddress, port);
+
+                    packetQueueIn.put(arq);
+
+                }
+
 
             } catch (IOException e) {
                 System.out.println("ERROR something went wrong with the receiving of DatagramPacket");
@@ -203,7 +240,51 @@ public class ClientPi implements Runnable, Constants {
         }
     }
 
-    
+   
+    // Getters and setters **********************************************
+    /**
+     * 
+     * @return
+     */
+    public static InetAddress getAddress() {
+        return address;
+    }
+
+    public static void setAddress(InetAddress address) {
+        ClientPi.address = address;
+    }
+
+    public DatagramSocket getClientSocket() {
+        return clientSocket;
+    }
+
+    public void setClientSocket(DatagramSocket clientSocket) {
+        this.clientSocket = clientSocket;
+    }
+
+    public PacketHandler getPackethandler() {
+        return packethandler;
+    }
+
+    public void setPackethandler(PacketHandler packethandler) {
+        this.packethandler = packethandler;
+    }
+
+    public BlockingQueue<ARQPacket> getPacketQueueIn() {
+        return packetQueueIn;
+    }
+
+    public void setPacketQueueIn(BlockingQueue<ARQPacket> packetQueueIn) {
+        this.packetQueueIn = packetQueueIn;
+    }
+
+    public BlockingQueue<ARQPacket> getPacketQueueOut() {
+        return packetQueueOut;
+    }
+
+    public void setPacketQueueOut(BlockingQueue<ARQPacket> packetQueueOut) {
+        this.packetQueueOut = packetQueueOut;
+    }
 
     public ArrayList<String> getDownLoading() {
         return downLoading;
@@ -221,57 +302,59 @@ public class ClientPi implements Runnable, Constants {
         this.upLoading = upLoading;
     }
 
-    public BlockingQueue<ARQPacket> getPacketQueueOut() {
-        return packetQueueOut;
+    public TUI getTui() {
+        return tui;
     }
 
-    public void setPacketQueueOut(BlockingQueue<ARQPacket> packetQueueOut) {
-        this.packetQueueOut = packetQueueOut;
+    public void setTui(TUI tui) {
+        this.tui = tui;
     }
- 
-    public  ArrayList<String> getListOfAvailableFiles() {
+
+    public static int getPortNumber() {
+        return portNumber;
+    }
+
+    public static void setPortNumber(int portNumber) {
+        ClientPi.portNumber = portNumber;
+    }
+
+    public byte[] getReceived() {
+        return received;
+    }
+
+    public void setReceived(byte[] received) {
+        this.received = received;
+    }
+
+    public ArrayList<String> getListOfAvailableFiles() {
         return ListOfAvailableFiles;
     }
 
-    public  void setListOfAvailableFiles(ArrayList<String> listOfAvailableFiles) {
+    public void setListOfAvailableFiles(ArrayList<String> listOfAvailableFiles) {
         ListOfAvailableFiles = listOfAvailableFiles;
     }
 
-    // Getters and setters ****************************************    
-    public BlockingQueue<ARQPacket> getPacketQueueIn() {
-        return packetQueueIn;
+    public HashMap<String, Integer> getMapFileNames() {
+        return mapFileNames;
     }
 
-    public void setPacketQueueIn(LinkedBlockingQueue<ARQPacket> packetQueueIn) {
-        this.packetQueueIn = packetQueueIn;
+    public void setMapFileNames(HashMap<String, Integer> mapFileNames) {
+        this.mapFileNames = mapFileNames;
     }
 
-    public PacketHandler getPacketHandler() {
-        return packethandler;
+    public HashMap<Integer, DownloadManager> getIdToDownloadManager() {
+        return idToDownloadManager;
     }
 
-    public void setPacketHandler(PacketHandler packetHandler) {
-        this.packethandler = packetHandler;
+    public void setIdToDownloadManager(HashMap<Integer, DownloadManager> idToDownloadManager) {
+        this.idToDownloadManager = idToDownloadManager;
     }
-    
 
-    private InetAddress getIPAddress() {
-        InetAddress IPAddress = null;
-        try {
-            IPAddress = InetAddress.getByName("localhost");
-        } catch (UnknownHostException e1) {
-            System.out.println("Unknown host");
-            e1.printStackTrace();
-        }
-        return IPAddress;
+    public static int getTimeout() {
+        return TIMEOUT;
     }
 
 
-
-
-
-
-
-
+   
 
 }

@@ -13,19 +13,26 @@ public interface Constants {
     public static byte[] SYN_B = new byte[] {0b00000000, 0b00000000, 0b00000000, 0b00000001};
     public static final int ACK = 2;         //ack of the send data.
     public static final int SYN_ACK = 3;     //doorgaan met zenden
-    public static final int DOWNLOAD = 4;   //doorgaan
+    public static final int DOWNLOAD = 32;   //doorgaan
     public static final int FIN = 4;         //finished with the file
     public static final int FILE_REQUEST = 8; //fileRequest 
+   
     public static final int META = 10;
+    public static final int META_ACK = 22;
+    
+    
     public static final int PAUSE = 12;
     public static final int RESUME = 16;
     public static final int UPLOAD = 18;
     public static final int FILELIST= 20;
+    
  
     
     public static final int DESTINATIONPORT = 6667;
 
     
     public final int EMPTY = 0;
+    
+    public final int SIZE_INT_BYTE = 4;
     
 }

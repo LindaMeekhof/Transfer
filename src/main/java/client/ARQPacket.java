@@ -93,7 +93,6 @@ public class ARQPacket {
         //First enter the header content
         System.arraycopy(header, 0, packet, 0, HEADERSIZE);
         setPacket(packet);
-        
     }
     
     /**
