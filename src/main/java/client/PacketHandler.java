@@ -1,6 +1,5 @@
 package client;
 
-import java.lang.reflect.Array;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
@@ -104,7 +103,7 @@ public class PacketHandler implements Runnable, Constants {
                         System.out.println("the filename send with META :" + str);
 
                         //place downloadManager with fileID in map
-                        DownloadManager downloader = new DownloadManager(str, this);
+                        DownloadManager downloader = new DownloadManager(str, this, packet.getFileID());
 
                         try {
                             downloader.processMETAPacket(packet);
@@ -124,7 +123,7 @@ public class PacketHandler implements Runnable, Constants {
                         System.out.println("OPTION " + packet.getOptions());
                         
                         System.out.println("META_ACK is ontvangen, FILE ID: " + packet.getFileID() );
-                        
+                    
                         DownloadManager downloadMetaAck = client.getIdToDownloadManager().get(packet.getFileID());
                                            
                         try {
@@ -150,7 +149,18 @@ public class PacketHandler implements Runnable, Constants {
                         String content = new String(packet.getData());
                         System.out.println("GET DATA packet " + content);
                         
+                        
+                        System.out.println(client.getIdToDownloadManager());
+                        
                         DownloadManager ackDownloader = client.getIdToDownloadManager().get(packet.getFileID());
+                        
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e2) {
+                            // TODO Auto-generated catch block
+                            e2.printStackTrace();
+                        }
+                        
                         
                         try {
                             ackDownloader.createAcknowledgementMessageProcesContent(packet);

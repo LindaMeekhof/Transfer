@@ -59,7 +59,7 @@ public class ClientPi implements Runnable, Constants {
     
     private TUI tui;
    
-    private static int portNumber = 666;
+    private static int portNumber = 6667;
     private byte[] received = new byte[1000];
     private static final int TIMEOUT = 1000;
     private ArrayList<String> ListOfAvailableFiles = new ArrayList<String>();
@@ -154,7 +154,7 @@ public class ClientPi implements Runnable, Constants {
                         
                         ARQPacket packetToSend =  packetQueueOut.poll();
                      
-                       int port = packetToSend.getDestinationPort();
+                        int port = packetToSend.getDestinationPort();
                         InetAddress IPAddress =  packetToSend.getAddress(); 
                         
                         byte[] dataToSend = packetToSend.getPacket();
@@ -190,7 +190,7 @@ public class ClientPi implements Runnable, Constants {
 
                     //UDP
                     String sentence = new String(receivedPacket.getData());
-                    System.out.println("RECEIVED: data " + sentence);
+               //     System.out.println("RECEIVED: data " + sentence);
                     InetAddress IPAddress = receivedPacket.getAddress();
                     System.out.println("RECEIVED: address " + IPAddress);
                     int port = receivedPacket.getPort();
@@ -209,7 +209,7 @@ public class ClientPi implements Runnable, Constants {
 
                     //UDP
                     String sentence = new String(receivedPacket.getData());
-                    System.out.println("RECEIVED: data " + sentence);
+               //     System.out.println("RECEIVED: data " + sentence);
                     InetAddress IPAddress = receivedPacket.getAddress();
                     System.out.println("RECEIVED: address " + IPAddress);
                     int port = receivedPacket.getPort();

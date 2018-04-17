@@ -17,13 +17,13 @@ public class DownloadManager implements Constants {
 
     protected String filename;
  
-
+    private HashMap<Integer, byte[]> sequenceNumberContentMap = new HashMap<Integer, byte[]>();
     protected int amountPackets;
     private int fileSize;
     //map for all the packets received.
     protected int fileID;
     protected PacketHandler packethandler;
-    private boolean isDownloading;
+    protected boolean isDownloading;
     protected int startingSequenceNumber;
     protected BlockingQueue<ARQPacket> ACKPacketsReceived = new LinkedBlockingQueue<ARQPacket>();
     private int filePointer = 0;
@@ -62,6 +62,18 @@ public class DownloadManager implements Constants {
         this.isDownloading = false;
         startingSequenceNumber = 0;
     }
+    
+    public DownloadManager (String filename, PacketHandler packethandler, int fileIdentity) {
+        this.filename = filename;
+        this.fileID = fileIdentity;
+        this.packethandler = packethandler;
+        
+        packethandler.getClient().getIdToDownloadManager().put(fileID, this);
+        
+        this.isDownloading = false;
+        startingSequenceNumber = 0;
+    }
+    
     
     //*******************************************************
     /**
@@ -105,15 +117,15 @@ public class DownloadManager implements Constants {
         String name = new String(buffer, "UTF-8");
 
         amountPackets = getAmountOfPacketsToInt(name);
-        lastContentAck = amountPackets - 1;
+        lastContentAck = amountPackets;
+        
         ByteBuffer totalBuffer = ByteBuffer.allocate(SIZE_INT_BYTE + buffer.length);
         
         ByteBuffer amountPacket = ByteBuffer.allocate(SIZE_INT_BYTE).putInt(amountPackets);
         totalBuffer.position(0);
         totalBuffer.put(amountPacket.array());
       
-      //  ByteBuffer fileName = ByteBuffer.allocate(buffer.length);
-       // byte[] theFileName = packet.getData();
+     
         totalBuffer.position(4); //TODO begint bij 4 na de int
         totalBuffer.put(buffer);
         
@@ -136,11 +148,13 @@ public class DownloadManager implements Constants {
      */
     public void processMETAPacket(ARQPacket packet) throws Exception {
 
-        ARQPacket arq = new ARQPacket(META_ACK, packet.getFileID(), startingSequenceNumber + 1, 
+        ARQPacket arq = new ARQPacket(META_ACK, packet.getFileID(), startingSequenceNumber,
                 packet.getSequenceNumber(), EMPTY, EMPTY);
         
         arq.setAddress(packet.getAddress());
         arq.setDestinationPort((packet.getDestinationPort()));
+        
+        //put ID and downloader in map        
         
         System.out.println("the META ack is send");
         packethandler.getClient().getPacketQueueOut().offer(arq);
@@ -154,24 +168,32 @@ public class DownloadManager implements Constants {
         //getting the file
         byte[] fileContents = FileManager.FileToByteArray(filename);
         
+        //als het goed is filepointer is 0 //TODO
+        
         int datalen = Math.min(DATASIZE, fileContents.length - filePointer);
         
         //create new ARQPacket
         byte[] pkt = new byte[datalen];
         System.arraycopy(fileContents, filePointer, pkt, 0, datalen);
+        
         startingSequenceNumber = startingSequenceNumber + 1;
+        
         ARQPacket arq = new ARQPacket(DOWNLOAD, fileID, startingSequenceNumber,
                 EMPTY, DATASIZE, EMPTY, pkt);
+        
+   
         
         arq.setAddress(packet.getAddress());
         arq.setDestinationPort((packet.getDestinationPort()));
         
         System.out.println("the Content is send" + packet.getACKNumber());
         packethandler.getClient().getPacketQueueOut().offer(arq); 
+        
+        filePointer = filePointer + datalen;
     }
     
     /**
-     * Process META_ACK packet, starting with download
+     * Process starting with download
      * @throws Exception 
      */
     public void processACKcreateContent(ARQPacket packet) throws Exception {
@@ -188,6 +210,7 @@ public class DownloadManager implements Constants {
             
             packethandler.getClient().getPacketQueueOut().offer(arq); 
             
+            startingSequenceNumber = startingSequenceNumber + 1;
         } else {
         
         //getting the file
@@ -198,7 +221,8 @@ public class DownloadManager implements Constants {
         //create new ARQPacket
         byte[] pkt = new byte[datalen];
         System.arraycopy(fileContents, filePointer, pkt, 0, datalen);
-        startingSequenceNumber = startingSequenceNumber + 1;
+        
+     //   startingSequenceNumber = startingSequenceNumber + 1;
         ARQPacket arq = new ARQPacket(DOWNLOAD, fileID, startingSequenceNumber,
                 EMPTY, datalen, EMPTY, pkt);
         
@@ -207,6 +231,10 @@ public class DownloadManager implements Constants {
         
         System.out.println("the Content is send" + packet.getACKNumber());
         packethandler.getClient().getPacketQueueOut().offer(arq); 
+        
+        filePointer = filePointer + datalen;
+        
+        startingSequenceNumber = startingSequenceNumber + 1;
         }
         
     }
@@ -238,24 +266,25 @@ public class DownloadManager implements Constants {
     }
 
   
-    private HashMap<Integer, byte[]> sequenceNumberContentMap = new HashMap<Integer, byte[]>();
+
 
     
     /**
-     * create an Acknowledgement packet. Only header.
+     * Create an ACK for download.
      * @param packet
      * @throws Exception 
      */
     public void createAcknowledgementMessageProcesContent(ARQPacket packet) throws Exception {
         //putting content in a map with sequencenumber
+        //TODO??
         byte[] sequenceNumberb = Arrays.copyOfRange(packet.getData(), 0, 4);
         int sequenceNumber = ByteBuffer.wrap(sequenceNumberb).getInt();
         System.out.println("Sequencenumber: " + sequenceNumber + "in map");
 
         sequenceNumberContentMap.put(sequenceNumber, packet.getData());
         
-        //create an ACK
-        int ackNumber = packet.getSequenceNumber() + 1;
+        //create an ACK --> hier gebleven
+        int ackNumber = packet.getSequenceNumber();
         int fileID = packet.getFileID();
         ARQPacket arq = new ARQPacket(ACK, fileID, EMPTY, 
                 ackNumber, EMPTY, EMPTY);

@@ -7,7 +7,7 @@ import client.Constants;
 
 
 public class TransferProtocol extends DownloadManager implements Constants{
-
+  
     
     public TransferProtocol(String filename, int amountPackets, int fileSize) {
         super(filename, amountPackets, fileSize);
@@ -15,6 +15,7 @@ public class TransferProtocol extends DownloadManager implements Constants{
     }
 
     public void send() throws Exception {
+        while(isDownloading) {
         // variabelen
         int LAR = 0;
         int LFS = LAR + 2;
