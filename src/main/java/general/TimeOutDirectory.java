@@ -1,11 +1,11 @@
 package general;
 
-public class TimeOutDownload extends Thread {
+public class TimeOutDirectory extends Thread {
 
-    DownloadManager downloader;
+    Directory directory;
     
-    public TimeOutDownload(DownloadManager downloader) {
-        this.downloader = downloader;
+    public TimeOutDirectory(Directory directory) {
+        this.directory = directory;
     }
     
     public void run() {
@@ -18,8 +18,8 @@ public class TimeOutDownload extends Thread {
         }
        
       
-        if(downloader.getExpectedACK() != downloader.getAckReceived()) {
-           downloader.send(downloader.getLastSendPacket()); 
+        if (directory.getExpectedAck() != directory.getReceivedAck()) {
+           directory.send(directory.getLastSendPacket()); 
            System.out.println("retransmit packet");
         }
     }

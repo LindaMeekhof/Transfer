@@ -18,7 +18,7 @@ import general.DownloadManager;
 
 public class ClientPi extends Thread implements Constants {
 
-    public static void main(String []args) throws Exception {
+    public static void main(String[] args) throws Exception {
 
         System.out.println("Try to start a client for connecting to Raspberry");
         /**
@@ -42,10 +42,9 @@ public class ClientPi extends Thread implements Constants {
             e1.printStackTrace();
         }
         
- 
         ClientPi client = new ClientPi();
-
-    }
+        
+}
     
  // Fields  *************************************************
     private static InetAddress address = null;    
@@ -62,7 +61,7 @@ public class ClientPi extends Thread implements Constants {
     private TUI tui;
    
     private static int portNumber = 6667;
-    private byte[] received = new byte[1000];
+    private byte[] received = new byte[BIG];
     private static final int TIMEOUT = 1000;
     private ArrayList<String> ListOfAvailableFiles = new ArrayList<String>();
   
@@ -172,7 +171,7 @@ public class ClientPi extends Thread implements Constants {
                 System.out.println("ERROR sending a packet has failed");
                 e.printStackTrace();
             } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
+                System.out.println("interruption exception client");
                 e.printStackTrace();
             }
 
@@ -191,15 +190,13 @@ public class ClientPi extends Thread implements Constants {
     @Override
     public void run() {
         while(alive) {
-          //  System.out.println("client receive running");
+      
             try {
                 if (portNumber == 6667) {
                     DatagramPacket receivedPacket = new DatagramPacket(received, received.length);
                     clientSocket.receive(receivedPacket);
 
-                    //UDP
-                    String sentence = new String(receivedPacket.getData());
-               System.out.println("RECEIVED: data " + sentence);
+  
                     InetAddress IPAddress = receivedPacket.getAddress();
                     System.out.println("RECEIVED: address " + IPAddress);
                     int port = receivedPacket.getPort();
@@ -216,9 +213,6 @@ public class ClientPi extends Thread implements Constants {
                     DatagramPacket receivedPacket = new DatagramPacket(received, received.length);
                     clientSocket.receive(receivedPacket);
 
-                    //UDP
-                    String sentence = new String(receivedPacket.getData());
-               //     System.out.println("RECEIVED: data " + sentence);
                     InetAddress IPAddress = receivedPacket.getAddress();
                     System.out.println("RECEIVED: address " + IPAddress);
                     int port = receivedPacket.getPort();
@@ -232,8 +226,6 @@ public class ClientPi extends Thread implements Constants {
                     packetQueueIn.put(arq);
                     
                 }
-
-
             } catch (IOException e) {
                 System.out.println("ERROR something went wrong with the receiving of DatagramPacket");
             } catch (InterruptedException e) {

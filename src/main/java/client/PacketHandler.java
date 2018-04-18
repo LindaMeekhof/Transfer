@@ -8,25 +8,26 @@ import java.util.HashMap;
 import java.util.Map;
 
 import general.Constants;
+import general.Directory;
 import general.DownloadManager;
 import general.FileManager;
 import general.Receiver;
 
 public class PacketHandler implements Runnable, Constants {
-    
-    
+       
     private ClientPi client;
     private boolean running;
-    int sessionID;
+    private int sessionID;
     private Map<Integer, Receiver> connections = new HashMap<Integer, Receiver>();
+    private Map<Integer, Directory> directoryManager = new HashMap<Integer, Directory>();
+    private ARQPacket lastSendPacket;
+    
 
     public PacketHandler(ClientPi client) {
         this.client = client;
         running = true;
     }
 
-    
-    private ARQPacket lastSendPacket;
 
     // Other methods ***************************************************************************
     
@@ -38,7 +39,6 @@ public class PacketHandler implements Runnable, Constants {
         
         while (running) {  
             while (hasPackets()) {
-                //Get packet and process on flag 
 
                 ARQPacket packet = client.packetQueueIn.poll();
 
@@ -89,7 +89,7 @@ public class PacketHandler implements Runnable, Constants {
                         int amountOfPackets = ByteBuffer.wrap(amount).getInt();
                         System.out.println("Amount of packets send" + amountOfPackets);
                         
-                        //filename
+                        //Filename
                         int length = packet.getData().length - 4;
                         byte[] name = Arrays.copyOfRange(packet.getData(), 4, length);
                         String str = new String(name);
@@ -98,9 +98,7 @@ public class PacketHandler implements Runnable, Constants {
                         //Get the receiver with fileID
                         Receiver receiver = connections.get(packet.getFileID());
                         System.out.println("fileID" + packet.getFileID());
-                        
-              
-                        
+      
                         try {
                             receiver.processMETAPacket(packet);
                         } catch (Exception e3) {
@@ -135,23 +133,10 @@ public class PacketHandler implements Runnable, Constants {
                         break;
                         
                     case DOWNLOAD :
-                        System.out.println("RECEIVED DOWNLOAD with content");
-                        System.out.println("FLAG " + packet.getFlag());
-                        System.out.println("FILE_ID " + packet.getFileName());
-                        System.out.println("SEQ NR " + packet.getSequenceNumber());
-                        System.out.println("ACK NR " + packet.getACKNumber());
-                        System.out.println("CONTENT_LENGTH " + packet.getContentLength());
-                        System.out.println("OPTION " + packet.getOptions());
-                        System.out.println("GET DATA" + packet.getData());
-                        System.out.println("");
-                        
+                        System.out.println("RECEIVED DOWNLOAD with content");                   
                         String content = new String(packet.getData());
                         System.out.println("GET DATA packet " + content);
-                        
-                        
-                        System.out.println(client.getIdToDownloadManager());
-                        
-                        //Get the receiver with fileID
+
                         Receiver rec = connections.get(packet.getFileID());
                        
                         try {
@@ -163,20 +148,11 @@ public class PacketHandler implements Runnable, Constants {
 
                         break;
                     case ACK :
-                        System.out.println("ACK packets packetcontent arrived");
                         System.out.println("RECEIVED ACK ");
-                        System.out.println("FLAG " + packet.getFlag());
-                        System.out.println("FILE_ID " + packet.getFileName());
-                        System.out.println("SEQ NR " + packet.getSequenceNumber());
-                        System.out.println("ACK NR " + packet.getACKNumber());
-                        System.out.println("CONTENT_LENGTH " + packet.getContentLength());
-                        System.out.println("OPTION " + packet.getOptions());
-                        System.out.println("GET DATA" + packet.getData());
-                        System.out.println("");
-                        
-                        
+     
                         DownloadManager ackDownload = client.getIdToDownloadManager().get(packet.getFileID());
-    
+                        
+                        //set the received ack in a set.
                         try {
                           ackDownload.processAckCreateContentPacket(packet);
                         } catch (Exception e) {
@@ -186,17 +162,8 @@ public class PacketHandler implements Runnable, Constants {
                         
                         break;
                     case FIN :
-                        System.out.println("Ready with sending this file");
                         System.out.println("RECEIVED FIN ");
-                        System.out.println("FLAG " + packet.getFlag());
-                        System.out.println("FILE_ID " + packet.getFileName());
-                        System.out.println("SEQ NR " + packet.getSequenceNumber());
-                        System.out.println("ACK NR " + packet.getACKNumber());
-                        System.out.println("CONTENT_LENGTH " + packet.getContentLength());
-                        System.out.println("OPTION " + packet.getOptions());
-                        System.out.println("GET DATA" + packet.getData());
-                        System.out.println("");
-                        
+
                         //Get the receiver with fileID
                         Receiver finReceiver = connections.get(packet.getFileID());
                        
@@ -210,40 +177,67 @@ public class PacketHandler implements Runnable, Constants {
                         break;
             
                     case FIN_ACK :
-                        System.out.println("Ready with sending this file");
-                        System.out.println("RECEIVED FIN ");
-                        System.out.println("FLAG " + packet.getFlag());
-                        System.out.println("FILE_ID " + packet.getFileName());
-                        System.out.println("SEQ NR " + packet.getSequenceNumber());
-                        System.out.println("ACK NR " + packet.getACKNumber());
-                        System.out.println("CONTENT_LENGTH " + packet.getContentLength());
-                        System.out.println("OPTION " + packet.getOptions());
-                        System.out.println("GET DATA" + packet.getData());
-                        System.out.println("");
+                       
+                        System.out.println("RECEIVED FIN ACK");
                         
-                        //Get the receiver with fileID
-                        Receiver finack = connections.get(packet.getFileID());
+                        DownloadManager finack = client.getIdToDownloadManager().get(packet.getFileID());
                        
                         try {
-                            finack.processReceivingContent(packet);
+                            finack.processFinAck();
+                        } catch (Exception e3) {
+                            System.out.println("processing fin error");
+                            e3.printStackTrace();
+                        }
+                        break;
+            
+                    case FILELIST :
+           
+                        System.out.println("RECEIVED FILELIST ");
+
+                        Directory directory = new Directory(this);
+                        directoryManager.put(packet.getFileID(), directory);
+                        
+                        try {
+                            directory.processFileDirectory(packet);
                         } catch (Exception e3) {
                             System.out.println("processing fin error");
                             e3.printStackTrace();
                         }
                         
                         break;
-            
+                    case ACKACK :
+                        
+                        System.out.println("RECEIVED FILELIST ");
+
+                        
+                        Directory dir = directoryManager.get(packet.getFileID());
+                        
+                        try {
+                            dir.processACK(packet);
+                        } catch (Exception e3) {
+                            System.out.println("processing fin error");
+                            e3.printStackTrace();
+                        }
+                        
+                        break;
+                    case LISTACK :
+                        
+                        System.out.println("RECEIVED FILELIST ");
+
+                        Directory direct = new Directory(this);
+                        directoryManager.put(packet.getFileID(), direct);
+                        
+                        try {
+                            direct.processListAck(packet);
+                        } catch (Exception e3) {
+                            System.out.println("processing fin error");
+                            e3.printStackTrace();
+                        }
+                        
+                        break;
+                     
                     default :
                         System.out.println("Invalid flag, drop the package");
-                        System.out.println("FLAG " + packet.getFlag());
-                        System.out.println("FILE_ID " + packet.getFileName());
-                        System.out.println("SEQ NR " + packet.getSequenceNumber());
-                        System.out.println("ACK NR " + packet.getACKNumber());
-                        System.out.println("CONTENT_LENGTH " + packet.getContentLength());
-                        System.out.println("OPTION " + packet.getOptions());
-                        System.out.println("GET DATA" + packet.getData());
-                        System.out.println("");
-                        
                     }
                 }
             }
@@ -251,93 +245,77 @@ public class PacketHandler implements Runnable, Constants {
             try {
                 Thread.sleep(2000);
             } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
+                System.out.println("interupted while sleeping");
                 e.printStackTrace();
             }
         }
     }
 
- 
-    
-    
-  
+
     public boolean hasPackets() {
         return !client.packetQueueIn.isEmpty();
     }
 
-    // create different kind of packets *******************************************
+
     /**
      * Create a FILE_REQUEST
      * @throws Exception 
      */
     public void connectionAndSendRequest(String filename) throws Exception {
         //Put the receiver in the map
-        Receiver receiver = new Receiver(this);
-        createIDforReceiver();
+        Receiver receiver = new Receiver(this, filename);
+        createID();
         connections.put(sessionID, receiver);
         
         receiver.createFileRequestPacket(filename, sessionID);
     }
     
-    
+    /**
+     * FileDirectory request.
+     * @throws Exception 
+     */
+    public void createFileListRequest() throws Exception {
+        Directory directory = new Directory(this);
+        createID();
+        directoryManager.put(sessionID, directory); 
+        
+        directory.createFileListRequest(sessionID);
+        
+    }
 
-
-    public void createIDforReceiver() {
+    public void createID() {
         sessionID++;    
     }
     
-    
 
-    
-    // Getters and setters
-
+    /**
+     * Getters and setters.
+     * @return
+     */
     public boolean isRunning() {
         return running;
     }
-
-
-
 
 
     public void setRunning(boolean running) {
         this.running = running;
     }
 
-
-
-
-
     public int getSessionID() {
         return sessionID;
     }
-
-
-
-
 
     public void setSessionID(int sessionID) {
         this.sessionID = sessionID;
     }
 
-
-
-
-
     public Map<Integer, Receiver> getConnections() {
         return connections;
     }
 
-
-
-
-
     public void setConnections(Map<Integer, Receiver> connections) {
         this.connections = connections;
     }
-
-
-
-
 
     public ClientPi getClient() {
         return client;
@@ -347,16 +325,21 @@ public class PacketHandler implements Runnable, Constants {
         this.client = client;
     }
 
-
     public ARQPacket getLastSendPacket() {
         return lastSendPacket;
     }
-
 
     public void setLastSendPacket(ARQPacket lastSendPacket) {
         this.lastSendPacket = lastSendPacket;
     }
     
- 
+    public Map<Integer, Directory> getDirectoryManager() {
+        return directoryManager;
+    }
+
+    public void setDirectoryManager(Map<Integer, Directory> directoryManager) {
+        this.directoryManager = directoryManager;
+    }
+
 
 }

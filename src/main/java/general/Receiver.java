@@ -8,18 +8,23 @@ public class Receiver implements Constants {
     int expectedAck;
     int receivedAck;
     int expectedSequence; 
-    FileManager filemanager;
+    FileManager fileManager;
+    String filename;
     
     PacketHandler packethandler;
     ARQPacket lastSendPacket;
     
     private int startingSequenceNumber;
+    private boolean notFinished;
     
-    public Receiver() {
+    
+
+    public Receiver(PacketHandler packethandler, String filename) {
         startingSequenceNumber = 0;
         expectedSequence = 0;
-        receivedAck = 0;
-        filemanager = new FileManager();
+      //  receivedAck = 0;
+        fileManager = new FileManager();
+        this.filename = filename;
     }
     
     /**
@@ -46,11 +51,20 @@ public class Receiver implements Constants {
         }
     }
     
+    /**
+     * Processing receiving content and writing it
+     * @param packet
+     * @throws Exception
+     */
     public void processReceivingContent(ARQPacket packet) throws Exception {
-    
-        System.out.println("expected sequencenumber" + packet.getSequenceNumber());
-        
+   
         if (expectedSequence == packet.getSequenceNumber()) {
+            
+            String str = new String(packet.getData());
+            System.out.println(str);
+        
+            fileManager.setFileContents(packet.getData(), filename);
+            
             System.out.println("received data with sequencenumber " + packet.getSequenceNumber());
             System.out.println("sending ack");
             ARQPacket arq = new ARQPacket(ACK, packet.getFileID(), EMPTY,
@@ -62,6 +76,7 @@ public class Receiver implements Constants {
             send(arq);
             lastSendPacket = arq;
             expectedSequence++;
+            startingSequenceNumber++;
         }
     }
     
@@ -73,60 +88,34 @@ public class Receiver implements Constants {
             //checksum geheel bestand.
             //option is 1 if corrupt
             //option is 2 if not corrupt
-            
-            
+                  
             ARQPacket arq = new ARQPacket(FIN_ACK, packet.getFileID(), startingSequenceNumber,
                     packet.getSequenceNumber(), EMPTY, EMPTY);
-            //moet nog een ack op de fin_ack krijgen op afsluiten
-        } //TODO
+            
+            send(arq);
+            lastSendPacket = arq;
+            expectedSequence++;      
+        } 
     }
     
-    public Integer getReceivedAck() {
-        return receivedAck;
+    public void processFinAck(ARQPacket packet) throws Exception {
+        if (expectedSequence == packet.getSequenceNumber()) {
+            System.out.println("received FIN, the download is ready");          
+            expectedSequence++;  
+            packethandler.getConnections().remove(packet.getFileID());
+            setNotFinished(false);
+        } 
     }
-
-    public void setReceivedAck(Integer receivedAck) {
-        this.receivedAck = receivedAck;
-    }
-
-    public PacketHandler getPackethandler() {
-        return packethandler;
-    }
-
-    public void setPackethandler(PacketHandler packethandler) {
-        this.packethandler = packethandler;
-    }
-
-    public ARQPacket getLastSendPacket() {
-        return lastSendPacket;
-    }
-
-    public void setLastSendPacket(ARQPacket lastSendPacket) {
-        this.lastSendPacket = lastSendPacket;
-    }
-
-    public Integer getExpectedAck() {
-        return expectedAck;
-    }
-
-    public void setExpectedAck(Integer expectedAck) {
-        this.expectedAck = expectedAck;
-    }
-
-    
-    
-    public Receiver(PacketHandler packethandler) {
-        this.packethandler = packethandler;
-    }
-    
     
     /**
      * Sending the ARQ to the queue
      */
     public void send(ARQPacket packet) {
         packethandler.getClient().getPacketQueueOut().offer(packet);
+        if (notFinished) {
         TimeOut timer = new TimeOut(this);
         timer.start();
+        }
     }
     
     /**
@@ -166,6 +155,82 @@ public class Receiver implements Constants {
         send(arq);
         this.lastSendPacket = arq;
         System.out.println("sending filerequest packet");
+    }
+    
+    public Integer getReceivedAck() {
+        return receivedAck;
+    }
+
+    public void setReceivedAck(Integer receivedAck) {
+        this.receivedAck = receivedAck;
+    }
+
+    public PacketHandler getPackethandler() {
+        return packethandler;
+    }
+
+    public void setPackethandler(PacketHandler packethandler) {
+        this.packethandler = packethandler;
+    }
+
+    public ARQPacket getLastSendPacket() {
+        return lastSendPacket;
+    }
+
+    public void setLastSendPacket(ARQPacket lastSendPacket) {
+        this.lastSendPacket = lastSendPacket;
+    }
+
+    public Integer getExpectedAck() {
+        return expectedAck;
+    }
+
+    public void setExpectedAck(Integer expectedAck) {
+        this.expectedAck = expectedAck;
+    }
+
+    public Receiver(PacketHandler packethandler) {
+        this.packethandler = packethandler;
+    }
+    
+    public int getExpectedSequence() {
+        return expectedSequence;
+    }
+
+    public void setExpectedSequence(int expectedSequence) {
+        this.expectedSequence = expectedSequence;
+    }
+
+    public FileManager getFilemanager() {
+        return fileManager;
+    }
+
+    public void setFilemanager(FileManager filemanager) {
+        this.fileManager = filemanager;
+    }
+
+    public int getStartingSequenceNumber() {
+        return startingSequenceNumber;
+    }
+
+    public void setStartingSequenceNumber(int startingSequenceNumber) {
+        this.startingSequenceNumber = startingSequenceNumber;
+    }
+
+    public boolean isNotFinished() {
+        return notFinished;
+    }
+
+    public void setNotFinished(boolean notFinished) {
+        this.notFinished = notFinished;
+    }
+
+    public void setExpectedAck(int expectedAck) {
+        this.expectedAck = expectedAck;
+    }
+
+    public void setReceivedAck(int receivedAck) {
+        this.receivedAck = receivedAck;
     }
  
 }

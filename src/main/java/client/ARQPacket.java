@@ -5,15 +5,12 @@ import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-import general.FileManager;
 
 public class ARQPacket {
 
     //Constants for Header
     private static int HEADERSIZE = 24;
-    private static final int DATASIZE = 300; 
 
-    
     //Starting place in the header
     private static int FLAG = 0;
     private static int NAME_FILE = 4;
@@ -21,8 +18,7 @@ public class ARQPacket {
     private static int ACK_NUMBER = 12;
     private static int CONTENT_LENGTH = 16;
     private static int OPTION_POS = 20;
-    
-    
+
     //header info
     private int flag; 
     private int fileID;
@@ -32,19 +28,13 @@ public class ARQPacket {
     private int contentLength;  
     private int option;
 
-    //UDP address
     private InetAddress address;
     private int destinationPort;
 
-    //byte array Header
     private byte[] header = new byte[HEADERSIZE];
-    
-    //byte array for data file
-    private byte[] data = new byte[0];
-    
+    private byte[] data = new byte[0];  
     private byte[] packet = new byte[0];
     
-
     /**
      * ARQPAcket constructor
      */
@@ -58,7 +48,7 @@ public class ARQPacket {
     }
     
     /**
-     * Voorlopig alleen de header.
+     * Constructor for only the header
      * @param flag
      * @param filename
      * @param sequenceNumber
@@ -76,16 +66,14 @@ public class ARQPacket {
         this.contentLength = contentLength;
         this.option = option;
         
-        header = getHeader();
-        
-        byte[] packet = new byte[HEADERSIZE];
-        
+        header = getHeader();       
+        byte[] packet = new byte[HEADERSIZE];     
         byte[] header = getHeader();
-        //First enter the header content
         System.arraycopy(header, 0, packet, 0, HEADERSIZE);
         setPacket(packet);
     }
-    
+
+   
     /**
      * ARQ packet 
      * @param flag
@@ -112,53 +100,15 @@ public class ARQPacket {
         data = new byte[fileContents.length];
         data = fileContents;
         
-        
         byte[] buffer = new byte[HEADERSIZE + fileContents.length];
-        //First enter the header content
+
         System.arraycopy(header, 0, buffer, 0, HEADERSIZE);
-     
-        //Secondly enter the data content in packet
         System.arraycopy(data, 0, buffer, header.length, data.length);
-        
         setPacket(buffer);
     }
     
     
-    /**
-     * 
-     * @param flag
-     * @param filename
-     * @param sequenceNumber
-     * @param ackNumber
-     * @param contentLength
-     * @param option
-     * @param path
-     * @throws Exception
-     */
-    public ARQPacket (int flag, int filename, int sequenceNumber, 
-            int ackNumber, int contentLength, int option, String path) throws Exception {
-        int filePointer = 0;
-        this.flag = flag;
-        this.fileID = filename;
-        this.sequenceNumber = sequenceNumber;
-        this.ackNumber = ackNumber;
-        this.contentLength = contentLength;
-        this.option = option;
-        
-        header = getHeader();
-        
-        //create data part of the ARQ Packet
-        byte[] fileContents = FileManager.FileToByteArray(path);
-        
-        int theSize = Math.min(DATASIZE, fileContents.length - filePointer);
-             
-        System.arraycopy(fileContents, filePointer, data, 0, theSize);
-          
-        //byte array header and data.
-        System.arraycopy(header, 0, packet, 0, HEADERSIZE);  
-        System.arraycopy(fileContents, filePointer, packet, HEADERSIZE, theSize);
-    }
-    
+
     
     /** 
      * Making an ARQ packet when receiving a Datagram. Datagram "uitpakken".
@@ -166,11 +116,9 @@ public class ARQPacket {
      */
     public ARQPacket(DatagramPacket datagram, InetAddress destination, int port) {
        
-        //header and content
        byte[] dataReceivedPacket = datagram.getData();
-       this.packet = dataReceivedPacket;
+       packet = new byte[dataReceivedPacket.length];
        
-       //get all the fields of header
        flag = getFlags(datagram);
        fileID = getFileName(datagram);
        sequenceNumber = getSequenceNumber(datagram);
@@ -178,16 +126,16 @@ public class ARQPacket {
        contentLength = getContentLength(datagram); 
        option = getOptions(datagram);
        
-      // --> hier gaat iets mis.
-       //get data content for ARQ packet.
-       
        data = new byte[dataReceivedPacket.length - header.length];
        
        System.arraycopy(dataReceivedPacket, header.length, data, 0, dataReceivedPacket.length - header.length);
        
-       //get header from DatagramPacket, Can be done when the fields are set.
-       this.header = getHeader();
+       header = getHeader();
+    
+       System.arraycopy(header, 0, packet, 0, HEADERSIZE);
+       System.arraycopy(data, 0, packet, header.length, data.length);
        
+    
        address = destination;
        destinationPort = port;
        
@@ -198,7 +146,6 @@ public class ARQPacket {
      * @return
      */
     public byte[] getHeader() {
-        //byte buffer for the header
         ByteBuffer buffer = ByteBuffer.allocate(HEADERSIZE);
         
         // 1. Flag
@@ -235,10 +182,6 @@ public class ARQPacket {
     }
 
     
-    // Getters and setters for header
-    //--------------------------------------------------
-    
- 
     /**
      * Get the Flag part of the Datagram packet
      * @param packet
@@ -372,8 +315,6 @@ public class ARQPacket {
     }
 
 
-
-    //Setters
     public void setFlags(int flag) {
         this.flag = flag;
     }
@@ -414,50 +355,5 @@ public class ARQPacket {
         this.fileID = fileID;
     }
 
-    
 
-
-    /**
-     * Create DatagramPacket 
-     * @param fileContent
-     * @param header
-     * @param filepointer
-     * @param address
-     * @param port
-     * @return
-     */
-    public DatagramPacket createPacket(byte[] fileContent, byte[] header, int filepointer, InetAddress address, int port) {
-        //lengte van de header + datastukje
-        byte[] packet = new byte[HEADERSIZE + DATASIZE];
-        
-        //First enter the header content
-        System.arraycopy(header, 0, packet, 0, header.length);
-        
-        //Secondly enter the data content
-        System.arraycopy(fileContent, filepointer, packet, header.length + 1, DATASIZE);
-        
-        return new DatagramPacket(packet, packet.length, address, port);
-    }
-    
-
-    
-    /**
-     * Main to test.
-     * @param args
-     * @throws Exception 
-     */
-    public static void main(String[] args) throws Exception {
-        
-        String sentence = "ackackakc";
-        byte[] sendData = sentence.getBytes();
-        
-        ARQPacket packet = new ARQPacket(11, 12, 13, 14, 15, 16, sendData);
-       
-        System.out.println(new String(packet.getPacket()));
-        System.out.println("test");
-    }
-    
-    
- 
-    
 }

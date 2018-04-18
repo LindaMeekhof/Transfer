@@ -5,8 +5,6 @@ import java.util.ArrayList;
 import java.util.Scanner;
 
 public class TUI implements Runnable {
-    
-   
 
     private static Scanner in;
     private ClientPi client;
@@ -34,7 +32,6 @@ public class TUI implements Runnable {
            //send
            String filename = message[1];
            
-           //tijdelijk al aanwezig //TODO
            client.getListOfAvailableFiles().add(filename);
            if (isAvailableFile(filename)) {
                System.out.println("This file is available");
@@ -48,7 +45,6 @@ public class TUI implements Runnable {
            }
        } else if (message[0].equalsIgnoreCase("PAUSE")) {
            if (isDownloading(message[1])) {
-              int fileID = 0; //TODO
        //       client.getPackethandler().createPauseRequest(fileID); 
            } else {
                System.out.println("This is not a file that is currently dowloaded, can't pause");
@@ -61,8 +57,7 @@ public class TUI implements Runnable {
            }
            
        } else if (message[0].equalsIgnoreCase("FILELIST")) {
-      //      client.getPackethandler().createFileListRequest();
-            System.out.println("filelist request send");
+           client.getPackethandler().createFileListRequest();
        } else {
            print("This is an unknown command");
        }
@@ -73,7 +68,7 @@ public class TUI implements Runnable {
         return client.getListOfAvailableFiles().contains(filename);
     }
     
-    //TODO dit moet op een andere plek staan 
+    //TODO dit moet op een andere plek staan  in handler
     private static ArrayList<String> listCurrentDownloads = new ArrayList<String>();
     
     /**
@@ -110,12 +105,10 @@ public class TUI implements Runnable {
             } catch (Exception e) {
                 System.out.println("Something went wrong while reading input user");
                 e.printStackTrace();
-            }
-            
+            }        
             try {
                 Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
+            } catch (InterruptedException e) { 
                 e.printStackTrace();
             }
         }

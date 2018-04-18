@@ -34,18 +34,8 @@ public class Utils {
         return Arrays.copyOfRange(buffer.array(), 1, 4);
     }
     
-    /**
-     * Create a random number for file ID number.
-     * Back up in a map with file String name file and ID number.
-     * @return
-     */
-    public static int createRandomNumberForFile() {
-        //TODO
-        return 44;
-    }
-    
     private static final String fileDirectory = "files";
-    private static final String slash = "/";
+
   
     /**
      * Get path from filename

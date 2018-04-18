@@ -3,12 +3,8 @@ package general;
 
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Random;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import client.ARQPacket;
 import client.ClientPi;
@@ -33,8 +29,7 @@ public class DownloadManager extends Thread implements Constants{
     private int expectedACK;
     private int ackReceived;
 
-
-     
+ 
     public DownloadManager (String filename, PacketHandler packethandler, InetAddress address, int port, ClientPi client, int fileID) {
         this.filename = filename;
         this.packethandler = packethandler;
@@ -79,7 +74,6 @@ public class DownloadManager extends Thread implements Constants{
         if (startingSequenceNumber == packet.getSequenceNumber()) {
         expectedACK = startingSequenceNumber; // = 0
      
-        //content METApacket
         byte[] buffer = packet.getData();
         String name = new String(buffer, "UTF-8");
 
@@ -98,8 +92,7 @@ public class DownloadManager extends Thread implements Constants{
         
         arq.setAddress(packet.getAddress());
         arq.setDestinationPort(packet.getDestinationPort());
-        
-      
+            
         System.out.println("process filerequest and send meta packet");
         send(arq);
         lastSendPacket = arq;
@@ -129,8 +122,6 @@ public class DownloadManager extends Thread implements Constants{
 
                 byte[] pkt = new byte[datalen];
                 System.arraycopy(fileContents, filePointer, pkt, 0, datalen);
-
-                //    startingSequenceNumber = startingSequenceNumber + 1;
 
                 ARQPacket arq = new ARQPacket(DOWNLOAD, fileID, startingSequenceNumber,
                         EMPTY, datalen, EMPTY, pkt);
@@ -234,7 +225,7 @@ public class DownloadManager extends Thread implements Constants{
     public byte[] getAmountOfPackets(String filename) throws Exception {
         
         byte[] fileContents = FileManager.FileToByteArray(filename);       
-        int amountPackets = fileContents.length/DATASIZE + 1;  //klopt dit??
+        int amountPackets = fileContents.length/DATASIZE + 1;  
         return Utils.intToBytes(amountPackets);
     }
    
@@ -248,12 +239,11 @@ public class DownloadManager extends Thread implements Constants{
     public int getAmountOfPacketsToInt(String filename) throws Exception {
 
         byte[] fileContents = FileManager.FileToByteArray(filename);       
-        amountPackets = fileContents.length/DATASIZE + 1;  //klopt dit??
+        amountPackets = fileContents.length/DATASIZE + 1; 
         return amountPackets;
     }
 
 
-    
     /**
      * Getters and setters.
      * @return
