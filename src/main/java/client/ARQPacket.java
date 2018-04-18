@@ -12,15 +12,7 @@ public class ARQPacket {
     //Constants for Header
     private static int HEADERSIZE = 24;
     private static final int DATASIZE = 300; 
-    
-    //Flags; waar is het pakketje voor
-    private static final int SYN = 1;         //setup, for making a storage for the file that will be send
-    private static byte[] SYN_B = new byte[] {0b00000000, 0b00000000, 0b00000000, 0b00000001};
-    private static final int ACK = 2;         //ack of the send data.
-    private static final int SYN_ACK = 3;     //doorgaan met zenden
-    private static final int FIN = 4;         //finished with the file
-    private static final int FILE_REQUEST = 8; //fileRequest 
-   
+
     
     //Starting place in the header
     private static int FLAG = 0;
@@ -77,7 +69,6 @@ public class ARQPacket {
      */
     public ARQPacket (int flag, int filename, int sequenceNumber, 
             int ackNumber, int contentLength, int option) throws Exception {
-        int filePointer = 0;
         this.flag = flag;
         this.fileID = filename;
         this.sequenceNumber = sequenceNumber;
@@ -425,12 +416,7 @@ public class ARQPacket {
 
     
 
-    
 
-    
-  
-    
-    
     /**
      * Create DatagramPacket 
      * @param fileContent
@@ -454,8 +440,6 @@ public class ARQPacket {
     }
     
 
-    
-    
     
     /**
      * Main to test.

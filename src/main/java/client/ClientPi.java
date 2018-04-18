@@ -10,10 +10,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+
+import general.Constants;
 import general.DownloadManager;
 
 
-public class ClientPi implements Runnable, Constants {
+public class ClientPi extends Thread implements Constants {
 
     public static void main(String []args) throws Exception {
 
@@ -56,7 +59,6 @@ public class ClientPi implements Runnable, Constants {
     public ArrayList<String> upLoading = new ArrayList<String>();
     
     private boolean alive;
-    
     private TUI tui;
    
     private static int portNumber = 6667;
@@ -65,7 +67,6 @@ public class ClientPi implements Runnable, Constants {
     private ArrayList<String> ListOfAvailableFiles = new ArrayList<String>();
   
     public HashMap<String, Integer> mapFileNames = new HashMap<String, Integer>();
-
     public HashMap<Integer, DownloadManager> idToDownloadManager = new HashMap<Integer, DownloadManager>();
 
     
@@ -98,8 +99,7 @@ public class ClientPi implements Runnable, Constants {
             clientSocket = new DatagramSocket(6667);
             System.out.println("starting as server");   
 
-            }
-            
+            }     
             
              //Start thread for handling packets 
             packethandler = new PacketHandler(this);
@@ -124,21 +124,26 @@ public class ClientPi implements Runnable, Constants {
         }
     }
     
+    
+    public void sending() {
+        
+    }
     // Sending packets ******************************************************************** 
     /**
      * Sending a packet.
      * @param sendPacket
      */
     public void sendingPackets() {
+        
         if(clientSocket != null) {
-         //   System.out.println("running");
+          
             try {
                 
                 if (portNumber == 6667) { //client
                     if (!packetQueueOut.isEmpty()) { 
                         System.out.println("the queue is not empty");
                         
-                        ARQPacket packetToSend =  packetQueueOut.poll();
+                        ARQPacket packetToSend =  packetQueueOut.poll(10, TimeUnit.MILLISECONDS);
                     
                          
                         byte[] dataToSend = packetToSend.getPacket();
@@ -149,10 +154,11 @@ public class ClientPi implements Runnable, Constants {
                         System.out.println("send as client");
                         } 
                 } else { //server
+           
                     if (!packetQueueOut.isEmpty()) { 
                         System.out.println("the queue is not empty");
                         
-                        ARQPacket packetToSend =  packetQueueOut.poll();
+                        ARQPacket packetToSend =  packetQueueOut.poll(10, TimeUnit.MILLISECONDS);
                      
                         int port = packetToSend.getDestinationPort();
                         InetAddress IPAddress =  packetToSend.getAddress(); 
@@ -165,10 +171,13 @@ public class ClientPi implements Runnable, Constants {
             } catch (IOException e) {
                 System.out.println("ERROR sending a packet has failed");
                 e.printStackTrace();
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
             }
 
             try {
-                Thread.sleep(2000);
+                Thread.sleep(50);
             } catch (InterruptedException e) {
                 System.out.println("Interupted while sleeping");
                 e.printStackTrace();
@@ -190,7 +199,7 @@ public class ClientPi implements Runnable, Constants {
 
                     //UDP
                     String sentence = new String(receivedPacket.getData());
-               //     System.out.println("RECEIVED: data " + sentence);
+               System.out.println("RECEIVED: data " + sentence);
                     InetAddress IPAddress = receivedPacket.getAddress();
                     System.out.println("RECEIVED: address " + IPAddress);
                     int port = receivedPacket.getPort();
@@ -221,7 +230,7 @@ public class ClientPi implements Runnable, Constants {
                     ARQPacket arq = new ARQPacket(receivedPacket, IPAddress, port);
 
                     packetQueueIn.put(arq);
-
+                    
                 }
 
 
@@ -232,7 +241,7 @@ public class ClientPi implements Runnable, Constants {
             }
 
             try {
-                Thread.sleep(2000);
+                Thread.sleep(50);
             } catch (InterruptedException e) {
                 System.out.println("Interupted while sleeping");
                 e.printStackTrace();

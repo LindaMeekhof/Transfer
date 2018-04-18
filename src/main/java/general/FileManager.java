@@ -25,7 +25,7 @@ public class FileManager {
         
     }
     
-    public static byte[] FileToByteArray(String filename) throws Exception {
+    public static byte[] FileToByteArray(String filename)  {
         String workingDirectory = System.getProperty("user.dir");
         
         System.out.println(new File(".").getAbsoluteFile() + "absolute");
@@ -47,12 +47,12 @@ public class FileManager {
                 //reads some number of bytes form the input stream and stores them into the buffer array 
                 int nextByte = fileStream.read();
                 if (nextByte == -1) {
-                    throw new Exception("File is smaller than indicated");
+                    System.out.println("File is smaller than indicated");
                 }
                 
                 //print the content
                 fileContentToBytes[i] = (byte) nextByte;
-                System.out.print((char) fileContentToBytes[i]);
+             //   System.out.print((char) fileContentToBytes[i]);
             }
             return fileContentToBytes;
         } catch (FileNotFoundException e) {

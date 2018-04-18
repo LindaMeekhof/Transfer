@@ -38,30 +38,30 @@ public class TUI implements Runnable {
            client.getListOfAvailableFiles().add(filename);
            if (isAvailableFile(filename)) {
                System.out.println("This file is available");
-               client.getPackethandler().createFileRequestPacket(filename);          
+               client.getPackethandler().connectionAndSendRequest(filename);          
            } else {
                System.out.println("This file is not available");
            }  
        } else if (message[0].equalsIgnoreCase("UPLOAD") && message.length == 2) {         
            if (isAvailableFile(message[1])) {
-                client.getPackethandler().createUploadRequest(message[2]);
+     //           client.getPackethandler().createUploadRequest(message[2]);
            }
        } else if (message[0].equalsIgnoreCase("PAUSE")) {
            if (isDownloading(message[1])) {
               int fileID = 0; //TODO
-              client.getPackethandler().createPauseRequest(fileID); 
+       //       client.getPackethandler().createPauseRequest(fileID); 
            } else {
                System.out.println("This is not a file that is currently dowloaded, can't pause");
            } 
        } else if (message[0].equalsIgnoreCase("RESUME") && message.length == 2) {
            if (isDownloading(message[1])) {
-               client.getPackethandler().createResume(message[1]);
+       //        client.getPackethandler().createResume(message[1]);
            } else {
                System.out.println("This is not a file that is paused, can't resume");
            }
            
        } else if (message[0].equalsIgnoreCase("FILELIST")) {
-            client.getPackethandler().createFileListRequest();
+      //      client.getPackethandler().createFileListRequest();
             System.out.println("filelist request send");
        } else {
            print("This is an unknown command");

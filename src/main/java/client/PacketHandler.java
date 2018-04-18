@@ -1,25 +1,32 @@
 package client;
 
-import java.net.DatagramPacket;
-import java.net.InetAddress;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
+import java.util.HashMap;
+import java.util.Map;
+
+import general.Constants;
 import general.DownloadManager;
 import general.FileManager;
+import general.Receiver;
 
 public class PacketHandler implements Runnable, Constants {
     
     
     private ClientPi client;
     private boolean running;
+    int sessionID;
+    private Map<Integer, Receiver> connections = new HashMap<Integer, Receiver>();
 
     public PacketHandler(ClientPi client) {
         this.client = client;
         running = true;
     }
 
+    
+    private ARQPacket lastSendPacket;
 
     // Other methods ***************************************************************************
     
@@ -56,29 +63,15 @@ public class PacketHandler implements Runnable, Constants {
                         System.out.println("the list of filenames" + filenames);
 
                         if (filenames.contains(filename.trim())) {
-                            System.out.println("The file exists" + filename);
-
-                            DownloadManager downloadManager = new DownloadManager(filename, this);
-
+                           
+                            DownloadManager downloadManager = new DownloadManager(filename, this, packet.getAddress(), 
+                                    packet.getDestinationPort(), client, packet.getFileID());
                             try {
-                               // System.out.println(filename);
                                 downloadManager.procesFileRequestCreateMETApacket(packet);
                             } catch (Exception e) {
-                                System.out.println("META data failure");
+                                System.out.println("processing file_request error");
                                 e.printStackTrace();
                             }    
-                        } else {
-                            System.out.println("The file does not exists" +  filename);
-
-                            DownloadManager downloadManager = new DownloadManager(filename, this);
-
-                            try {
-                                 //iets anders sturen
-                                downloadManager.procesFileRequestCreateMETApacket(packet);
-                            } catch (Exception e) {
-                                System.out.println("META data failure");
-                                e.printStackTrace();
-                            }           
                         }
 
                         break;
@@ -102,16 +95,19 @@ public class PacketHandler implements Runnable, Constants {
                         String str = new String(name);
                         System.out.println("the filename send with META :" + str);
 
-                        //place downloadManager with fileID in map
-                        DownloadManager downloader = new DownloadManager(str, this, packet.getFileID());
-
+                        //Get the receiver with fileID
+                        Receiver receiver = connections.get(packet.getFileID());
+                        System.out.println("fileID" + packet.getFileID());
+                        
+              
+                        
                         try {
-                            downloader.processMETAPacket(packet);
-                        } catch (Exception e) {
-                            System.out.println("Something wrong withh process META packet");
-                            e.printStackTrace();
+                            receiver.processMETAPacket(packet);
+                        } catch (Exception e3) {
+                            System.out.println("processing meta error");
+                            e3.printStackTrace();
                         }
-
+         
                         break;
                     case META_ACK :
                         System.out.println("RECEIVED a META_ACK");
@@ -127,9 +123,12 @@ public class PacketHandler implements Runnable, Constants {
                         DownloadManager downloadMetaAck = client.getIdToDownloadManager().get(packet.getFileID());
                                            
                         try {
-                            downloadMetaAck.processMetaAckPacketCreateContent(packet);
+                          
+                            downloadMetaAck.setDownloading(true);
+                            downloadMetaAck.processAckCreateContentPacket(packet);
+
                         } catch (Exception e2) {
-                            // TODO Auto-generated catch block
+                            System.out.println("processing meta_ack error");
                             e2.printStackTrace();
                         }
                         
@@ -152,21 +151,14 @@ public class PacketHandler implements Runnable, Constants {
                         
                         System.out.println(client.getIdToDownloadManager());
                         
-                        DownloadManager ackDownloader = client.getIdToDownloadManager().get(packet.getFileID());
-                        
+                        //Get the receiver with fileID
+                        Receiver rec = connections.get(packet.getFileID());
+                       
                         try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e2) {
-                            // TODO Auto-generated catch block
-                            e2.printStackTrace();
-                        }
-                        
-                        
-                        try {
-                            ackDownloader.createAcknowledgementMessageProcesContent(packet);
-                        } catch (Exception e1) {
-                            // TODO Auto-generated catch block
-                            e1.printStackTrace();
+                            rec.processReceivingContent(packet);
+                        } catch (Exception e3) {
+                            System.out.println("processing download error");
+                            e3.printStackTrace();
                         }
 
                         break;
@@ -182,14 +174,13 @@ public class PacketHandler implements Runnable, Constants {
                         System.out.println("GET DATA" + packet.getData());
                         System.out.println("");
                         
-                        DownloadManager ackDownload = client.getIdToDownloadManager().get(packet.getFileID());
                         
-                      
-       
+                        DownloadManager ackDownload = client.getIdToDownloadManager().get(packet.getFileID());
+    
                         try {
-                            ackDownload.processACKcreateContent(packet);
+                          ackDownload.processAckCreateContentPacket(packet);
                         } catch (Exception e) {
-                            // TODO Auto-generated catch block
+                            System.out.println("processsing ack error");
                             e.printStackTrace();
                         }
                         
@@ -206,9 +197,42 @@ public class PacketHandler implements Runnable, Constants {
                         System.out.println("GET DATA" + packet.getData());
                         System.out.println("");
                         
+                        //Get the receiver with fileID
+                        Receiver finReceiver = connections.get(packet.getFileID());
+                       
+                        try {
+                            finReceiver.processReceivingContent(packet);
+                        } catch (Exception e3) {
+                            System.out.println("processing fin error");
+                            e3.printStackTrace();
+                        }
+                        
                         break;
             
-                   
+                    case FIN_ACK :
+                        System.out.println("Ready with sending this file");
+                        System.out.println("RECEIVED FIN ");
+                        System.out.println("FLAG " + packet.getFlag());
+                        System.out.println("FILE_ID " + packet.getFileName());
+                        System.out.println("SEQ NR " + packet.getSequenceNumber());
+                        System.out.println("ACK NR " + packet.getACKNumber());
+                        System.out.println("CONTENT_LENGTH " + packet.getContentLength());
+                        System.out.println("OPTION " + packet.getOptions());
+                        System.out.println("GET DATA" + packet.getData());
+                        System.out.println("");
+                        
+                        //Get the receiver with fileID
+                        Receiver finack = connections.get(packet.getFileID());
+                       
+                        try {
+                            finack.processReceivingContent(packet);
+                        } catch (Exception e3) {
+                            System.out.println("processing fin error");
+                            e3.printStackTrace();
+                        }
+                        
+                        break;
+            
                     default :
                         System.out.println("Invalid flag, drop the package");
                         System.out.println("FLAG " + packet.getFlag());
@@ -236,179 +260,103 @@ public class PacketHandler implements Runnable, Constants {
  
     
     
-    // create different kind of packets *******************************************
-    /**
-     * Create a FILE_REQUEST message
-     * @throws Exception 
-     */   
+  
     public boolean hasPackets() {
         return !client.packetQueueIn.isEmpty();
     }
 
     // create different kind of packets *******************************************
     /**
-     * Create a FILE_REQUEST message de goede 
+     * Create a FILE_REQUEST
      * @throws Exception 
      */
-    public void createFileRequestPacket(String filename) throws Exception {
-       
-        ARQPacket arq = new ARQPacket();
- 
-        //setflags
-        arq.setFlags(FILE_REQUEST);
-        arq.setSequenceNumber(0);  //TODO
-        arq.setACKNumber(EMPTY); 
-        arq.setContentLength(filename.getBytes().length);
+    public void connectionAndSendRequest(String filename) throws Exception {
+        //Put the receiver in the map
+        Receiver receiver = new Receiver(this);
+        createIDforReceiver();
+        connections.put(sessionID, receiver);
         
-        //setDatas
-        byte[] data = filename.getBytes();
-        arq.setData(data);    
-        
-        //bytebuffer for packet (header + data)
-        int fileNameSize = filename.getBytes().length;
-        byte[] packet = new byte[HEADERSIZE + fileNameSize];
-        
-        byte[] header = arq.getHeader();
-        //First enter the header content
-        System.arraycopy(header, 0, packet, 0, HEADERSIZE);
-        
-        //Secondly enter the data content
-        System.arraycopy(data, 0, packet, header.length, data.length);
-        arq.setPacket(packet);
-        
-        send(arq);
-        System.out.println("sending filerequest packet");
-
+        receiver.createFileRequestPacket(filename, sessionID);
     }
+    
     
 
 
-
-    /**
-     * Create finish message.
-     * @param packet
-     * @throws Exception
-     */
-    public void createFinishMessage(ARQPacket packet) throws Exception {
-        ARQPacket arq = new ARQPacket(FIN, packet.getFileID(),
-                EMPTY, EMPTY, EMPTY, EMPTY);
-        send(arq);
+    public void createIDforReceiver() {
+        sessionID++;    
     }
     
-    /**
-     * Create pause request
-     * @throws Exception 
-     */
-    public void createPauseRequest(int fileID) throws Exception {
-        ARQPacket arq = new ARQPacket(PAUSE, fileID,
-                EMPTY, EMPTY, EMPTY, EMPTY);
-        send(arq);
-    }
     
-    /**
-     * Create pause request
-     * @throws Exception 
-     */
-    public void createResume(String filename) throws Exception {
-        int fileID = 11; //TODO
-        ARQPacket arq = new ARQPacket(RESUME, fileID,
-                EMPTY, EMPTY, EMPTY, EMPTY);
-        send(arq);
-    }
-    
-    /**
-     * Create pause request
-     * @throws Exception 
-     */
-    public void createUploadRequest(String filename) throws Exception {
-        int fileID = 12; //TODO
-        ARQPacket arq = new ARQPacket(UPLOAD, fileID,
-                EMPTY, EMPTY, EMPTY, EMPTY);
-        send(arq);
-    }
-    
-    /**
-     * Create pause request
-     * @throws Exception 
-     */
-    public void createFileListRequest() throws Exception {
-        int fileID = 12; //TODO
-        ARQPacket arq = new ARQPacket(FILELIST, fileID,
-                EMPTY, EMPTY, EMPTY, EMPTY);
-        send(arq);
-    }
-  
-    
-    /**
-     * Sending the ARQ to the queue
-     */
-    public void send(ARQPacket packet) {
-        client.packetQueueOut.offer(packet);
-    }
- 
-    /**
-     *  
-     * @param timeout
-     * @return
-     */
-     
-    public ARQPacket dequeuePacket(long timeout) {
-        ARQPacket box = null;
-        
-        try {
-            box = client.packetQueueIn.poll(timeout, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) { 
-            System.out.println("Something went wrong with ARQPacket dequeue");
-        }
-        return box;
-        
-        
-    }
-    
-    /**
-     * Create a datagram with data
-     * @param arq
-     * @param IPAddress
-     * @param destinationPort
-     * @return
-     */
-    public static DatagramPacket createDatagram(ARQPacket arq, 
-            InetAddress IPAddress, int destinationPort) {
-        byte[] data = arq.getPacket();
-        System.out.println(data);
-        DatagramPacket datagram = new DatagramPacket(data, data.length, 
-                IPAddress, destinationPort);
-        return datagram;
-    }
 
     
     // Getters and setters
-    
-    
+
+    public boolean isRunning() {
+        return running;
+    }
+
+
+
+
+
+    public void setRunning(boolean running) {
+        this.running = running;
+    }
+
+
+
+
+
+    public int getSessionID() {
+        return sessionID;
+    }
+
+
+
+
+
+    public void setSessionID(int sessionID) {
+        this.sessionID = sessionID;
+    }
+
+
+
+
+
+    public Map<Integer, Receiver> getConnections() {
+        return connections;
+    }
+
+
+
+
+
+    public void setConnections(Map<Integer, Receiver> connections) {
+        this.connections = connections;
+    }
+
+
+
+
+
     public ClientPi getClient() {
         return client;
     }
-
 
     public void setClient(ClientPi client) {
         this.client = client;
     }
 
-    
 
-    // Main **************************
-    /**
-     * Main to test.
-     * @param args
-     * @throws Exception 
-     */
-    public static void main(String[] args) throws Exception {
-        ClientPi pi = new ClientPi();
-        PacketHandler handler = new PacketHandler(pi);
-        handler.createFileRequestPacket("test");
-        
-     
+    public ARQPacket getLastSendPacket() {
+        return lastSendPacket;
     }
-        
+
+
+    public void setLastSendPacket(ARQPacket lastSendPacket) {
+        this.lastSendPacket = lastSendPacket;
+    }
+    
+ 
 
 }

@@ -1,7 +1,9 @@
 package general;
 
 
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
@@ -9,102 +11,64 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import client.ARQPacket;
-import client.Constants;
+import client.ClientPi;
 import client.PacketHandler;
 import client.Utils;
 
-public class DownloadManager implements Constants {
+public class DownloadManager extends Thread implements Constants{
 
     protected String filename;
- 
+    
     private HashMap<Integer, byte[]> sequenceNumberContentMap = new HashMap<Integer, byte[]>();
     protected int amountPackets;
-    private int fileSize;
-    //map for all the packets received.
     protected int fileID;
     protected PacketHandler packethandler;
     protected boolean isDownloading;
     protected int startingSequenceNumber;
-    protected BlockingQueue<ARQPacket> ACKPacketsReceived = new LinkedBlockingQueue<ARQPacket>();
-    private int filePointer = 0;
-    private int lastContentAck = 0;
-    
-    public int getLastContentAck() {
-        return lastContentAck;
-    }
+    private InetAddress address;
+    private int port;
+    private ClientPi client;
+    private int filePointer;
+    private ARQPacket lastSendPacket;
+    private int expectedACK;
+    private int ackReceived;
 
-    public void setLastContentAck(int lastContentAck) {
-        this.lastContentAck = lastContentAck;
-    }
 
-    /**
-     * Constructors
-     * @param filename
-     * @param amountPackets
-     * @param fileSize
-     */
-    public DownloadManager (String filename, int amountPackets, int fileSize) {
+     
+    public DownloadManager (String filename, PacketHandler packethandler, InetAddress address, int port, ClientPi client, int fileID) {
         this.filename = filename;
-        this.amountPackets = amountPackets;
-        this.fileSize = fileSize;
-       
+        this.packethandler = packethandler;
+        this.client = client;
+        this.fileID = fileID;
+             
+        packethandler.getClient().getIdToDownloadManager().put(fileID, this);
         
+        this.isDownloading = false;
+        startingSequenceNumber = 0;
+        
+        this.address = address;
+        this.port = port;
+        this.start();
+        filePointer = 0;
+    }
+    
+    public DownloadManager (String filename, PacketHandler packethandler, int fileIdentity, InetAddress address, int port, ClientPi client, int fileID) {
+        this.filename = filename;
+        this.fileID = fileID;
+        this.packethandler = packethandler;
+        
+        packethandler.getClient().getIdToDownloadManager().put(this.fileID, this);
+        
+        this.isDownloading = false;
+        startingSequenceNumber = 0;
+        this.port = port;
+        this.address = address;
+        
+        this.client = client;
+        this.start();
+        filePointer = 0;
     }
      
-    public DownloadManager (String filename, PacketHandler packethandler) {
-        this.filename = filename;
-        this.packethandler = packethandler;
-        
-        createID();
-        
-        packethandler.getClient().getIdToDownloadManager().put(fileID, this);
-        
-        this.isDownloading = false;
-        startingSequenceNumber = 0;
-    }
-    
-    public DownloadManager (String filename, PacketHandler packethandler, int fileIdentity) {
-        this.filename = filename;
-        this.fileID = fileIdentity;
-        this.packethandler = packethandler;
-        
-        packethandler.getClient().getIdToDownloadManager().put(fileID, this);
-        
-        this.isDownloading = false;
-        startingSequenceNumber = 0;
-    }
-    
-    
-    //*******************************************************
-    /**
-     * Getters and setters
-     * @return
-     */
-    public String getFilename() {
-        return filename;
-    }
-
-    public void setFilename(String filename) {
-        this.filename = filename;
-    }
-
-    
-    /**
-     * CreateID for filename
-     */
-    private void createID() {
-        
-        int fileNumber;
-        do {
-               Random rand = new Random(); 
-               int value = rand.nextInt(50); 
-               fileNumber = value;
-        } while (packethandler.getClient().getIdToDownloadManager().containsKey(fileNumber));
-        
-        this.fileID = fileNumber;
-    }
-        
-    
     //*********************************************************
     /**
      * Create META packet
@@ -112,24 +76,22 @@ public class DownloadManager implements Constants {
      */
     public void procesFileRequestCreateMETApacket(ARQPacket packet) throws Exception {
         
+        if (startingSequenceNumber == packet.getSequenceNumber()) {
+        expectedACK = startingSequenceNumber; // = 0
+     
         //content METApacket
         byte[] buffer = packet.getData();
         String name = new String(buffer, "UTF-8");
 
         amountPackets = getAmountOfPacketsToInt(name);
-        lastContentAck = amountPackets;
-        
-        ByteBuffer totalBuffer = ByteBuffer.allocate(SIZE_INT_BYTE + buffer.length);
-        
+             
+        ByteBuffer totalBuffer = ByteBuffer.allocate(SIZE_INT_BYTE + buffer.length);  
         ByteBuffer amountPacket = ByteBuffer.allocate(SIZE_INT_BYTE).putInt(amountPackets);
         totalBuffer.position(0);
         totalBuffer.put(amountPacket.array());
-      
-     
-        totalBuffer.position(4); //TODO begint bij 4 na de int
+        totalBuffer.position(4); 
         totalBuffer.put(buffer);
-        
-        
+         
         ARQPacket arq = new ARQPacket(META, fileID, startingSequenceNumber, 
                 packet.getSequenceNumber(), 4 + packet.getData().length, EMPTY, totalBuffer.array());
         System.out.println(arq);
@@ -137,138 +99,91 @@ public class DownloadManager implements Constants {
         arq.setAddress(packet.getAddress());
         arq.setDestinationPort(packet.getDestinationPort());
         
+      
         System.out.println("process filerequest and send meta packet");
-        packethandler.getClient().getPacketQueueOut().offer(arq);
+        send(arq);
+        lastSendPacket = arq;
+        startingSequenceNumber++;
+        } 
     }
     
-    /**
-     * Process meta packet
-     * @param packet
-     * @throws Exception
-     */
-    public void processMETAPacket(ARQPacket packet) throws Exception {
+    
 
-        ARQPacket arq = new ARQPacket(META_ACK, packet.getFileID(), startingSequenceNumber,
-                packet.getSequenceNumber(), EMPTY, EMPTY);
-        
-        arq.setAddress(packet.getAddress());
-        arq.setDestinationPort((packet.getDestinationPort()));
-        
-        //put ID and downloader in map        
-        
-        System.out.println("the META ack is send");
-        packethandler.getClient().getPacketQueueOut().offer(arq);
-    }
-    
+
     /**
      * Process META_ACK packet, starting with download
      * @throws Exception 
      */
-    public void processMetaAckPacketCreateContent(ARQPacket packet) throws Exception {
-        //getting the file
-        byte[] fileContents = FileManager.FileToByteArray(filename);
-        
-        //als het goed is filepointer is 0 //TODO
-        
-        int datalen = Math.min(DATASIZE, fileContents.length - filePointer);
-        
-        //create new ARQPacket
-        byte[] pkt = new byte[datalen];
-        System.arraycopy(fileContents, filePointer, pkt, 0, datalen);
-        
-        startingSequenceNumber = startingSequenceNumber + 1;
-        
-        ARQPacket arq = new ARQPacket(DOWNLOAD, fileID, startingSequenceNumber,
-                EMPTY, DATASIZE, EMPTY, pkt);
-        
-   
-        
-        arq.setAddress(packet.getAddress());
-        arq.setDestinationPort((packet.getDestinationPort()));
-        
-        System.out.println("the Content is send" + packet.getACKNumber());
-        packethandler.getClient().getPacketQueueOut().offer(arq); 
-        
-        filePointer = filePointer + datalen;
-    }
-    
-    /**
-     * Process starting with download
-     * @throws Exception 
-     */
-    public void processACKcreateContent(ARQPacket packet) throws Exception {
-        
-        if (packet.getACKNumber() == lastContentAck) {
+    public void processAckCreateContentPacket(ARQPacket packet) throws Exception {
+        System.out.println("process content expected ack should be 0 and is" + expectedACK);
+
+        if (packet.getACKNumber() == expectedACK) { 
+
+            System.out.println(packet.getACKNumber() == expectedACK);
+            //getting the file
+            byte[] fileContents = FileManager.FileToByteArray(filename);
+
+            if (filePointer <= fileContents.length) { 
+
+                int datalen = Math.min(DATASIZE, fileContents.length - filePointer);
+
+                byte[] pkt = new byte[datalen];
+                System.arraycopy(fileContents, filePointer, pkt, 0, datalen);
+
+                //    startingSequenceNumber = startingSequenceNumber + 1;
+
+                ARQPacket arq = new ARQPacket(DOWNLOAD, fileID, startingSequenceNumber,
+                        EMPTY, datalen, EMPTY, pkt);
+                arq.setAddress(address);
+                arq.setDestinationPort(port);
+
+                arq.setAddress(packet.getAddress());
+                arq.setDestinationPort((packet.getDestinationPort()));
+
+                System.out.println("the Content is send" + packet.getACKNumber());
+                send(arq);
+                this.lastSendPacket = arq;
+
+                filePointer = filePointer + datalen;
+
+                expectedACK++;
+                startingSequenceNumber++;
+            } else {
+           
+            sendFIN();
             
-            ARQPacket arq = new ARQPacket(FIN, fileID, startingSequenceNumber,
-                    EMPTY, EMPTY, EMPTY);
-          
-            System.out.println("FIN message is send" + packet.getACKNumber());
-            
-            arq.setAddress(packet.getAddress());
-            arq.setDestinationPort((packet.getDestinationPort()));
-            
-            packethandler.getClient().getPacketQueueOut().offer(arq); 
-            
-            startingSequenceNumber = startingSequenceNumber + 1;
-        } else {
-        
-        //getting the file
-        byte[] fileContents = FileManager.FileToByteArray(filename);
-        
-        int datalen = Math.min(DATASIZE, fileContents.length - filePointer);
-        
-        //create new ARQPacket
-        byte[] pkt = new byte[datalen];
-        System.arraycopy(fileContents, filePointer, pkt, 0, datalen);
-        
-     //   startingSequenceNumber = startingSequenceNumber + 1;
-        ARQPacket arq = new ARQPacket(DOWNLOAD, fileID, startingSequenceNumber,
-                EMPTY, datalen, EMPTY, pkt);
-        
-        arq.setAddress(packet.getAddress());
-        arq.setDestinationPort((packet.getDestinationPort()));
-        
-        System.out.println("the Content is send" + packet.getACKNumber());
-        packethandler.getClient().getPacketQueueOut().offer(arq); 
-        
-        filePointer = filePointer + datalen;
-        
-        startingSequenceNumber = startingSequenceNumber + 1;
+            }
         }
-        
-    }
-    
-    /**
-     * Return a byteArray for the amount of packets will be send for sending the file.
-     * @param filename
-     * @return
-  * @throws Exception 
-     */
-    public byte[] getAmountOfPackets(String filename) throws Exception {
-        
-        byte[] fileContents = FileManager.FileToByteArray(filename);       
-        int amountPackets = fileContents.length/DATASIZE + 1;  //klopt dit??
-        return Utils.intToBytes(amountPackets);
-    }
-    
-    /**
-     * Return a byteArray for the amount of packets will be send for sending the file.
-     * @param filename
-     * @return
-  * @throws Exception 
-  */
-    public int getAmountOfPacketsToInt(String filename) throws Exception {
 
-        byte[] fileContents = FileManager.FileToByteArray(filename);       
-        amountPackets = fileContents.length/DATASIZE + 1;  //klopt dit??
-        return amountPackets;
+
     }
 
+    public void sendFIN() throws Exception {
+
+        int seqNumber = amountPackets + 1;
+        ARQPacket arq = new ARQPacket(FIN, fileID, seqNumber,
+                EMPTY, EMPTY, EMPTY);
+
+        arq.setAddress(address);
+        arq.setDestinationPort(port);
+        expectedACK = seqNumber;
+
+        send(arq); 
+        lastSendPacket = arq;
+    }
   
-
-
+  /**
+   * Process fin_ack
+   */
+  public void processFinAck() {
+      System.out.println("the donwload is ended");
+      System.out.println("startingSequenceNumber: " + startingSequenceNumber);
+      
+      packethandler.getConnections().remove(fileID);
+  }
     
+    
+
     /**
      * Create an ACK for download.
      * @param packet
@@ -294,8 +209,166 @@ public class DownloadManager implements Constants {
         arq.setAddress(packet.getAddress());
         arq.setDestinationPort((packet.getDestinationPort()));
         
-        packethandler.getClient().getPacketQueueOut().offer(arq); 
+        send(arq);
+        lastSendPacket = arq;
     }
 
+
+
+    /**
+     * Sending packets
+     * @param arq
+     */
+    public void send(ARQPacket packet) {
+        packethandler.getClient().getPacketQueueOut().offer(packet);
+        TimeOutDownload timer = new TimeOutDownload(this);
+        timer.start();
+    }
     
+    /**
+     * Return a byteArray for the amount of packets will be send for sending the file.
+     * @param filename
+     * @return
+  * @throws Exception 
+     */
+    public byte[] getAmountOfPackets(String filename) throws Exception {
+        
+        byte[] fileContents = FileManager.FileToByteArray(filename);       
+        int amountPackets = fileContents.length/DATASIZE + 1;  //klopt dit??
+        return Utils.intToBytes(amountPackets);
+    }
+   
+    
+    /**
+     * Return a byteArray for the amount of packets will be send for sending the file.
+     * @param filename
+     * @return
+  * @throws Exception 
+  */
+    public int getAmountOfPacketsToInt(String filename) throws Exception {
+
+        byte[] fileContents = FileManager.FileToByteArray(filename);       
+        amountPackets = fileContents.length/DATASIZE + 1;  //klopt dit??
+        return amountPackets;
+    }
+
+
+    
+    /**
+     * Getters and setters.
+     * @return
+     */
+    public String getFilename() {
+        return filename;
+    }
+
+    public void setFilename(String filename) {
+        this.filename = filename;
+    }
+
+    public HashMap<Integer, byte[]> getSequenceNumberContentMap() {
+        return sequenceNumberContentMap;
+    }
+
+    public void setSequenceNumberContentMap(HashMap<Integer, byte[]> sequenceNumberContentMap) {
+        this.sequenceNumberContentMap = sequenceNumberContentMap;
+    }
+
+    public int getAmountPackets() {
+        return amountPackets;
+    }
+
+    public void setAmountPackets(int amountPackets) {
+        this.amountPackets = amountPackets;
+    }
+
+    public int getFileID() {
+        return fileID;
+    }
+
+    public void setFileID(int fileID) {
+        this.fileID = fileID;
+    }
+
+    public PacketHandler getPackethandler() {
+        return packethandler;
+    }
+
+    public void setPackethandler(PacketHandler packethandler) {
+        this.packethandler = packethandler;
+    }
+
+    public boolean isDownloading() {
+        return isDownloading;
+    }
+
+    public void setDownloading(boolean isDownloading) {
+        this.isDownloading = isDownloading;
+    }
+
+    public int getStartingSequenceNumber() {
+        return startingSequenceNumber;
+    }
+
+    public void setStartingSequenceNumber(int startingSequenceNumber) {
+        this.startingSequenceNumber = startingSequenceNumber;
+    }
+
+    public InetAddress getAddress() {
+        return address;
+    }
+
+    public void setAddress(InetAddress address) {
+        this.address = address;
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
+    }
+
+    public ClientPi getClient() {
+        return client;
+    }
+
+    public void setClient(ClientPi client) {
+        this.client = client;
+    }
+
+    public int getFilePointer() {
+        return filePointer;
+    }
+
+    public void setFilePointer(int filePointer) {
+        this.filePointer = filePointer;
+    }
+
+    public ARQPacket getLastSendPacket() {
+        return lastSendPacket;
+    }
+
+    public void setLastSendPacket(ARQPacket lastSendPacket) {
+        this.lastSendPacket = lastSendPacket;
+    }
+
+    public int getExpectedACK() {
+        return expectedACK;
+    }
+
+    public void setExpectedACK(int expectedACK) {
+        this.expectedACK = expectedACK;
+    }
+
+    public int getAckReceived() {
+        return ackReceived;
+    }
+
+    public void setAckReceived(int ackReceived) {
+        this.ackReceived = ackReceived;
+    }
+
 }
+
